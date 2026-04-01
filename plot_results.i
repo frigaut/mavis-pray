@@ -1,0 +1,14 @@
+efd = [0.6,0.9,1.2,1.5,1.8,2.1];
+p3 = [73.5,20.8,10.2,12.3,6.6,20.0];
+p5 = [10.5,10.2,5.4,5.7,5.5,34.0];
+p3n= [69.7,19.3,10.5,8.5,8.6,33.9];
+p5n= [12.9,7.0,5.5,8.3,6.0,11.1];
+fma;
+plg,p3,efd,type=2;
+plg,p3n,efd,color="red",type=2;
+plg,p5,efd;
+plg,p5n,efd,color="red";
+plmargin;
+range,0;
+xytitles,"one unit of extra-focal shift","Estimation error [nm]",[-0.015,0.];
+pltitle,"white/red: no noise/noisy - solid/dashed: 5/3points defoc";
