@@ -208,7 +208,6 @@ func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
 		cmax = cmax * 1e3;
   }
 
-
   // compute true phase from truecoeffs for display comparison
   extern truecube;
   truecube = array(0.,[3,size,size,nopt]);
@@ -222,6 +221,21 @@ func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
     cpt += nzer(i);
   }
   def = [];
+
+  // ok first let's do an estimate of Strehl for the deltafoc=0 and scale the
+  // phase screens from there:
+  if (strehl_normalise) {
+    write,format="Normalising Original Strehl to %.1f%%\n",100*strehl_target;
+    ima = psfs_from_coeffs(pray_data,0,coeff,amp1,amp2, \
+        rotv=rotv(,config.roti(i)),nodisp=1,fromscreens=(initphase=="screens"));
+    ima = ima/ima(*,)(sum,)(-,-,); // normalisation
+    strehlavg = avg(ima(*,)(max,)/peak_airy);
+    fact = sqrt(log(strehl_target)/log(strehlavg));
+    *pray_data.mircube *= fact;
+    truecube *= fact;
+    truecoeff *= fact;
+  }
+
 
   res = [];
   for (i=1;i<=nfoc;i++) {

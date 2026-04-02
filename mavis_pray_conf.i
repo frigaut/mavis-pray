@@ -75,6 +75,8 @@ osampl    = 1;   // oversampling (1 or 2)
 // gridpad   = 2.;  // padding in arcsec to ovalidate sources
 gridpad   = 1.;  // padding in arcsec to ovalidate sources
 ps_slope  = -2.5;
+strehl_normalise = 1;
+strehl_target = 0.41;
 
 // Graphics parameters
 dpi_target = 160; // dpi for the "large" graphic windows
