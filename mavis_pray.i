@@ -151,6 +151,7 @@ func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
   write,format="Number of optics: %d, Number of extra-focal pos.: %d, number of rotation: %d\n",nopt,numberof(deltafoc),dimsof(rotv)(0);
   write,format="%s","Extra focal distances: "; deltafoc_orig;
   write,format="%s","Optics conjug. altitude: "; alt;
+  write,format="%s","Optics WFE [nm]: "; nm_rmsv;
   write,format="Number of modes (%s) per optics: ",strcase(1,usemodes); nzer;
   write,format="%s","Fit optics?: "; fit;
   perfrom = (initphase=="screens"?"Power spectrum":"Mode coefficients");
@@ -226,8 +227,13 @@ func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
   // phase screens from there:
   if (strehl_normalise) {
     write,format="Normalising Original Strehl to %.1f%%\n",100*strehl_target;
-    ima = psfs_from_coeffs(pray_data,0,coeff,amp1,amp2, \
-        rotv=rotv(,config.roti(i)),nodisp=1,fromscreens=(initphase=="screens"));
+    w0 = where(deltafoc==0);
+    if (numberof(w0)==0) error,"For Stehl normalisation, you have to have one of the deltafoc=0";
+    ima = [];
+    for (i=1;i<=numberof(w0);i++) {
+      grow,ima,psfs_from_coeffs(pray_data,0,coeff,amp1,amp2, \
+        rotv=rotv(,config.roti(w0(i))),nodisp=1,fromscreens=(initphase=="screens"));
+    }
     ima = ima/ima(*,)(sum,)(-,-,); // normalisation
     strehlavg = avg(ima(*,)(max,)/peak_airy);
     fact = sqrt(log(strehl_target)/log(strehlavg));
