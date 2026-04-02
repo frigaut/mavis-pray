@@ -44,11 +44,14 @@ on the particular optics). Probably. TODO.
 
 */
 
-write,format="%s\n%s\n","Try running","perfvsnit([50],8,[0,-1.5,1.5],100,0.001,rseed=random(),disp=1)";
-write,format="%s\n%s\n","Or simply","res=mavis_pray(,8,[0,-1.5,1.5],1000,0.,,disp=1,maxiter=50,rseed=random())";
+write,format="%s\n%s\n","Try running","res=mavis_pray(,8,[0,-1.5,1.5],1000,0.,,disp=1,maxiter=50,rseed=random())";
+write,format="%s\n%s\n","Or","perfvsnit([50],8,[0,-1.5,1.5],100,0.001,rseed=random(),disp=1)";
+write,format="%s\n%s\n","Or","res=doitall([10,20,50],10,8,[0.,-1.5,1.5],10000,0.,disp=1)";
+
 system,"echo 'res=mavis_pray(,8,[0,-1.5,1.5],1000,0.,,disp=1,maxiter=50,rseed=random())' | wl-copy";
 
 require,"pray.i";
+require,"mavis_pray_lib.i";
 
 func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
 	rseed=,verbose=,noinc=)
@@ -94,10 +97,15 @@ func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
 
   // window init
   win = [1,3,7,8,15];
-  for (i=1;i<=numberof(win);i++) if (window_exists(win(i))) { window,win(i); limits; fma; }
+  for (i=1;i<=numberof(win);i++) {
+    if (window_exists(win(i))) {
+      window,win(i);
+      if (win(i)!=15) { limits; fma; }
+    }
+  }
 
   nw = clip(nopt,4,8); nw = 8;
-  if (!window_exists(3)) plsplit,2,nw,win=3,style="nobox.gs",square=1,dpi=300,margin=-0.02,vp=[0.206+0.0115*(nw-3),0.656+0.0115*(nw-3),0.44,0.85];
+  if (!window_exists(3)) plsplit,2,nw,win=3,style="nobox.gs",square=1,dpi=long(dpi_target*1.5),margin=-0.02,vp=[0.206+0.0115*(nw-3),0.656+0.0115*(nw-3),0.44,0.85];
 
   // define and fill pray data structure
   pray_data         = pray_struct();
@@ -157,7 +165,6 @@ func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
   // window,8; fma; plp,ypos,xpos; limits; limits,square=1; hitReturn;
 
   // pray init
-  // def = fits_read("kls150.fits");
   status = pray_init(pray_data);
 
   // init for Strehl estmation.
@@ -201,6 +208,7 @@ func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
 		cmax = cmax * 1e3;
   }
 
+
   // compute true phase from truecoeffs for display comparison
   extern truecube;
   truecube = array(0.,[3,size,size,nopt]);
@@ -223,7 +231,6 @@ func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
     grow,res,&psfs_from_coeffs(pray_data,deltafoc(i),coeff,amp1,amp2, \
     rotv=rotv(,config.roti(i)),nodisp=1,fromscreens=(initphase=="screens"));
   }
-
   // OK so it's the implementation that is wrong.
   // probably we need to save the truecube and compare to it later.
 
@@ -246,7 +253,7 @@ func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
       rotvstr = strjoin(swrite(format="%.0f",rotv(,config(n).roti)),",");
       write,format="\033[31mStrehl over FoV (rot=[%s]): avg=%.1f%%\033[0m rms=%.1f%%\n", \
         rotvstr,100*avg(strehlv),100*strehlv(rms);
-      start_strehl = [avg(strehlv),strehlv(rms)];
+      if (n==1) start_strehl = [avg(strehlv),strehlv(rms)];
       // FIXME, right now the start_strehl is for 180 while end_strehl is for 0
     }
 
@@ -295,49 +302,34 @@ func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
   st = exp(-(2*pi/lambda*sqrt(sum(tmp^2.))));
   write,format="Strehl due to fit=0 optics only (full original rms): %.1f%%\n",st*100;
 
-  return [start_strehl,end_strehl];
+  return [start_strehl,end_strehl]; // with rms, e.g. [[0.4492,0.0343104],[0.968047,0.0202398]]
 }
-
-func build_bigim(data_set,xpos,ypos,variance,zoomfactor=)
-{
-  if (zoomfactor==[]) zoomfactor=2.0;
-  if (variance==[]) variance = 0.0;
-  dims   = dimsof(data_set);
-  nim    = dims(0);
-  size   = dims(2);
-
-  nlin   = long(sqrt(nim));
-  stride = long(size/zoomfactor);
-  // dposp  = xpos(2)-xpos(1);
-  dposp = fullfield/ngrid;
-
-  xposp  = 1+long((xpos-min(xpos))/dposp*stride);
-  yposp  = 1+long((ypos-min(ypos))/dposp*stride);
-
-  bigim = array(0.,[2,max(xposp)+size,max(yposp)+size]);
-
-  for (i=1;i<=nim;i++) {
-    bigim(xposp(i):xposp(i)+size-1,yposp(i):yposp(i)+size-1) += eclat(data_set(,,i));
-  }
-  // crop the image
-  // xy1 = 1+(size-stride)/2;
-  // xy2 = 1+long(size/2+(nlin-0.5)*stride);
-  // bigim = bigim(xy1:xy2,xy1:xy2);
-  bigim += random_normal(dimsof(bigim))*sqrt(variance);
-  return bigim;
-}
+// END OF MAVIS_PRAY
 
 func perfvsnit(nitv,ngrid,deltafoc,flux,ron,rseed=,disp=)
 {
-  // lambda = 550; // nm
   nitv = _(0,nitv);
   stvsnit = nitv*0.+1;
+  st_start_vsnit = st_start_spatial_rms_vsnit = nitv*0.+1;
+  st_end_vsnit = st_end_spatial_rms_vsnit = nitv*0.+1;
   for (nn=2;nn<=numberof(nitv);nn++) {
     strehls = mavis_pray(,ngrid,deltafoc,flux,ron,init_strehlv,disp=disp,maxiter=nitv(nn),rseed=rseed);
+    st_start_vsnit(nn) = strehls(1,1);
+    st_start_spatial_rms_vsnit(nn) = strehls(2,1);
+    st_end_vsnit(nn) = strehls(1,2);
+    st_end_spatial_rms_vsnit(nn) = strehls(2,2);
   }
+  // fill in the uncorrected case
+  st_start_vsnit(1) = strehls(1,1);
+  st_start_spatial_rms_vsnit(1) = strehls(2,1);
+  st_end_vsnit(1) = strehls(1,1);
+  st_end_spatial_rms_vsnit(1) = strehls(2,1);
+
+  cw = current_window();
   if (window_exists(15)) window,15;
   else window,15,wait=1,dpi=long(dpi_target_small);
-  errnm = lambda/2/pi*sqrt(-log(stvsnit));
+  errnm = lambda/2/pi*sqrt(-log(st_end_vsnit));
+  fma;
   plg,errnm,nitv,width=3;
   plp,errnm,nitv,symbol="o",size=0.5,width=3;
   plt,swrite(format="%.1f",errnm(0)),nitv(0)+2,errnm(0)+2,justify="LB",tosys=1,height=10;
@@ -345,147 +337,39 @@ func perfvsnit(nitv,ngrid,deltafoc,flux,ron,rseed=,disp=)
   xytitles,"Number of iterations","Phase error [nm]",[-0.015,0.];
   pltitle,swrite(format="Pray: %dx%d grid, efd=%s, flux=%.0f, RON=%g",\
       ngrid,ngrid,print(deltafoc)(1),flux*1.,ron*1.);
+  window,cw,wait=1;
   pause,50;
-  return [nitv,errnm];
-  // return strehls;
+  return [nitv,errnm,st_start_vsnit,st_start_spatial_rms_vsnit,st_end_vsnit,st_end_spatial_rms_vsnit];
 }
 
 func doitall(nitv,nsamp,ngrid,deltafoc,flux,ron,disp=)
 {
-  if (window_exists(15)) window,15;
-  else window,15,wait=1,dpi=long(dpi_target_small);
-  fma;
-  // if (window_exists(16)) window,16;
-  // else window,16,wait=1,dpi=long(dpi_target_small);
-  // fma;
-  allres = array(_(0.,nitv*0.),nsamp);
+  allststart = allstend = array(_(0.,nitv*0.),nsamp);
   for (k=1;k<=nsamp;k++) {
     write,format="\ndoitall() iteration: %d/%d\n",k,nsamp;
     res = perfvsnit(nitv,ngrid,deltafoc,flux,ron,rseed=random(),disp=disp);
-    allres(,k) = res(,2);
-    nitv2 = res(,1);
-    plg,allres(,k),nitv2;
-    plp,allres(,k),nitv2,symbol="o",size=0.5;
-    plmargin; range,0;
-    xytitles,"Number of iterations","Phase error [nm]",[-0.015,0.];
-    pltitle,swrite(format="Pray: %dx%d grid, efd=%s, flux=%.0f, RON=%g",\
-        ngrid,ngrid,print(deltafoc)(1),flux*1.,ron*1.);
+    allststart(,k) = res(,3); // start strehls vs nit
+    allstend(,k) = res(,5); // end strehls vs nit
+    nitv2 = res(,1); // nit vector, including 0
   }
-  erravg = allres(,avg);
-  errrms = allres(,rms);
-  w = where((abs(allres(0,)-median(allres(0,)))<3*allres(0,rms)));
-  write,format="Kept %d out of %d samples\n",numberof(w),nsamp;
-  erravg = allres(,w)(,avg);
-  errrms = allres(,w)(,rms);
-  write,format="Final phase error [nm] = %.2fnm +/- %.2f\n",erravg(0),errrms(0);
+  if (window_exists(1)) window,1;
+  else window,1,wait=1,dpi=long(dpi_target_small);
   fma;
-  plg,erravg,nitv2,width=3;
-  plp,erravg,nitv2,symbol="o",size=0.5,width=3;
-  pleb,erravg,nitv2,dy=errrms,width=3;
-  plmargin; range,0;
-  xytitles,"Number of iterations","Phase error [nm]",[-0.015,0.];
-  pltitle,swrite(format="Pray: %dx%d grid, efd=%s, flux=%.0f, RON=%g",\
-    ngrid,ngrid,print(deltafoc)(1),flux*1.,ron*1.);
-  // error;
-  return allres;
-}
-
-/*
-old (opmnb) time per iter: 300ms
-new (vmlmb) time per iter: 105ms
-*/
-
-func plot1(allres,nitv2,nsamp,ngrid,deltafoc,flux,ron,nsig,col=)
-{
-  erravg = allres(,avg);
-  errrms = allres(,rms);
-  w = where((abs(allres(0,)-median(allres(0,)))<nsig*allres(0,rms)));
-  w2 = where((abs(allres(0,)-median(allres(0,)))>=nsig*allres(0,rms)));
-  write,format="Kept %d out of %d samples, rejected %s\n",numberof(w),nsamp,print(w2);
-  allres = allres(,w)
-  erravg = allres(,avg);
-  errrms = allres(,rms);
-  plg,erravg,nitv2,width=3,color=col;
-  plp,erravg,nitv2,symbol="o",size=0.5,width=3,color=col;
-  pleb,erravg,nitv2,dy=errrms,width=3,color=col;
-  plmargin; range,0;
-  xytitles,"Number of iterations","Phase error [nm]",[-0.015,0.];
-  pltitle,swrite(format="Pray: %dx%d grid, PDEFD=%s, flux=%.0f, RON=%g",\
-    ngrid,ngrid,print(deltafoc)(1),flux*1.,ron*1.);
-  return allres;
-}
-
-func plot_failed(file)
-{
-  d = rdcols(file);
-  rmsin = *d(1); rmsout = *d(2);
-  s = sort(rmsin);
-  rmsin = rmsin(s); rmsout = rmsout(s);
-  nsamp = numberof(rmsin);
-  step = 10;
-  x = y = [];
-  for (i=long(min(rmsin));i<=long(max(rmsin)+step);i=i+step) {
-    w = where((rmsin>=i)&(rmsin<(i+step)));
-    if (numberof(w)==0) continue;
-    grow,x,avg(rmsin(w));
-    grow,y,100.*sum(rmsout(w)>8)/numberof(w);
-  }
-  fma; logxy,0,0; limits,square=0; limits;
-  plh,y,x;
-  pltitle,swrite(format="Convergence failure (%d samples)",nsamp);
-  xytitles,"Input phase rms error [nm]","Failure to converge [%]",[-0.015,0];
-}
-
-func make_phase_screens(pup,lambda,nm_rms,slope,rseed=,remove_tt=,remove_foc=)
-/* DOCUMENT make_phasescreens(dim,lambda,nm_rms,slope)
- * pup: pupil array (needed for computation of rms and TT removal)
- * lambda: wavelength [nm]
- * nm_rms: rms of output phase [nm]
- * slope: slope of phase power spectrum (usually around -2 for optics)
- *
- * Return the phase [2,dim,dim] in radians
- */
-{
-	dim = dimsof(pup)(2);
-	mtf = roll(clip(dist(dim),1,)^slope);
-	random_seed,(rseed?rseed:0.3);
-	pha = random(dimsof(mtf))*2*pi;
-	obj = mtf*exp(1i*pha);
-	phase = fft(obj,1).re;
-	// phase = phase/phase(*)(rms)*nm_rms/lambda*2*pi;
-	// remove piston and TT (experimental):
-	w = where(pup);
-	phase -= phase(w)(avg);
-	if (remove_tt) {
-		tt = (indices(dim)-dim/2.-0.5);
-		tip = sum(phase(w)*tt(,,1)(w))/sum(tt(,,1)(w)^2);
-		tilt = sum(phase(w)*tt(,,2)(w))/sum(tt(,,2)(w)^2);
-		phase = phase-tip*tt(,,1)-tilt*tt(,,2);
-	}
-	if (remove_foc) {
-		focus = dist(dim,xc=dim/2+1,yc=dim/2+1)^2;
-		foc = sum(phase(w)*focus(w))/sum(focus(w)^2);
-		phase = phase-foc*focus;
-	}
-	phase = phase/phase(w)(rms);
-	// possibly we could think or re-adding the TT now that the phase
-	// has been normalised on the TT less phase. Consider implementing
-	phase = phase*nm_rms/lambda*2*pi;
-	return phase;
-}
-
-func test_make_phase_screens(nm_rms)
-{
-	dim=256; lambda=550.;
-	if (nm_rms==[]) nm_rms=50.;
-	pup = dist(dim)<(dim/4.);
-	airy = roll(abs(fft(pup,1))^2.);
-	mairy=max(airy);
-	phase=make_phase_screens(pup,lambda,nm_rms,-2.,remove_tt=1,remove_foc=1);
-	psf = roll(abs(fft(pup*exp(1i*phase),1))^2.);
-	write,format="Returned phase rms [nm]: %.1f\n",phase(where(pup))(rms)*lambda/2/pi;
-	write,format="Strehl from image, i.e. max(ima)/max(airy):  %.3f\n",max(psf)/max(airy);
-	var=phase(where(pup))(*)(rms)^2.;
-	write,format="Strehl expected from Marechal approximation: %.3f\n",exp(-var); tv,psf;
-	return phase;
+  w = where((abs(allstend(0,)-median(allstend(0,)))<3*allstend(0,rms)));
+  write,format="Kept %d out of %d samples\n",numberof(w),nsamp;
+  ststartavg = allststart(,w)(,avg); stendavg = allstend(,w)(,avg);
+  ststartrms = allststart(,w)(,rms); stendrms = allstend(,w)(,rms);
+  // write,format="Final Strehl [nm] = %.2fnm +/- %.2f\n",erravg(0),errrms(0);
+  fma;
+  plg,ststartavg,nitv2;
+  plp,ststartavg,nitv2,symbol="o",size=0.5;
+  pleb,ststartavg,nitv2,dy=ststartrms;
+  plg,stendavg,nitv2,color="red";
+  plp,stendavg,nitv2,symbol="o",size=0.5,color="red";
+  pleb,stendavg,nitv2,dy=stendrms,color="red";
+  plmargin; range,0,1;
+  xytitles,"Number of iterations",swrite(format="Strehl @ %.0fnm",float(lambda)),[-0.015,0.];
+  pltitle,"End Strehl (red) vs # of iterations";
+  // pltitle,swrite(format="Pray: %dx%d grid, efd=%s, flux=%.0f, RON=%g",\
+  //   ngrid,ngrid,print(deltafoc)(1),flux*1.,ron*1.);
 }
