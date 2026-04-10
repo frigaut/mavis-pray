@@ -10,7 +10,7 @@ func script1(void)
 
   // nmov = [6,25,100];
   sst = est = nmov*0.;
-  for (nmo=1;nmo<=numberof(nmov);nmo++) {
+  for (nmo=1;nmo<=nof(nmov);nmo++) {
     write,format="\n\nSimulation with %d modes\n\n",nmov(nmo);
     alls = array(0.,[3,2,2,nsamp]);
     for (n=1;n<=nsamp;n++) {
@@ -48,7 +48,7 @@ func script2(void)
 
   // nmov = [6,25,100];
   sst = est = nitv*0.;
-  for (ni=1;ni<=numberof(nitv);ni++) {
+  for (ni=1;ni<=nof(nitv);ni++) {
     write,format="\n\nSimulation with %d iterations\n\n",nitv(ni);
     alls = array(0.,[3,2,2,nsamp]);
     for (n=1;n<=nsamp;n++) {
@@ -85,7 +85,7 @@ func script3(void)
   rseedv = random(nsamp);
 
   sst = est = slov*0.;
-  for (ns=1;ns<=numberof(slov);ns++) {
+  for (ns=1;ns<=nof(slov);ns++) {
     write,format="\n\nSimulation with slope = %.2f\n\n",slov(ns);
     alls = array(0.,[3,2,2,nsamp]);
     for (n=1;n<=nsamp;n++) {

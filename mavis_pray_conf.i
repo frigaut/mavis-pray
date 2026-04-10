@@ -3,7 +3,7 @@ geometry  = "hexagonal"; // "square" or "hexagonal"
 fovshape  = "round";     // "round" if desired if not will default to square
 // fovshape  = "square";     // "round" if desired if not will default to square
 initphase = "coefs";   // "coefs" or "screens"
-initphase = "screens";   // "coefs" or "screens"
+// initphase = "screens";   // "coefs" or "screens"
 
 // parameters defined statically:
 alt     = [0.,6000,13500.]; //45000 seems to be the limit
@@ -62,9 +62,9 @@ rotv    = [[0.,0,0],[180,0,0]];
 //              [180,180 ,180 ,180 ,180,180,180,90   ,0     ,0]];
 // fit       = fit*0+1;
 
-w = where(fit==0); if (numberof(w)) nzer(w) = 2;
+w = where(fit==0); if (nof(w)) nzer(w) = 2;
 
-weight    = array(3./sqrt(numberof(alt)),numberof(nzer)); // mode weights (static aberrations)
+weight    = array(2./sqrt(nof(alt)),nof(nzer)); // mode weights (static aberrations)
 // weight   *= [0.3,0.3,1,1,1,0.3];
 fullfield = 30.; // full field in arcsec (on the side) - why 40 and not 30?
 teldiam   = 8.0; // telescope diameter
@@ -77,6 +77,7 @@ gridpad   = 1.;  // padding in arcsec to ovalidate sources
 ps_slope  = -2.5;
 strehl_normalise = 1;
 strehl_target = 0.41;
+zoomfactor = 3;
 
 // Graphics parameters
 dpi_target = 160; // dpi for the "large" graphic windows
@@ -90,10 +91,10 @@ if (rotv==[]) rotv = alt*0.;
 
 if ((initphase=="screens")&(nm_rmsv==[])) error,"nm_rmsv undefined while initphase=\"screens\"";
 if ((initphase=="coefs")&(weight==[])) error,"nm_rmsv undefined while initphase=\"screens\"";
-doa = numberof(alt);
-if (numberof(nzer)!=doa) error,"nzer and alt do not have the same dimension";
-if (numberof(nm_rmsv)!=doa) error,"nm_rmsv and alt do not have the same dimension";
-if (numberof(fit)!=doa) error,"fit and alt do not have the same dimension";
+doa = nof(alt);
+if (nof(nzer)!=doa) error,"nzer and alt do not have the same dimension";
+if (nof(nm_rmsv)!=doa) error,"nm_rmsv and alt do not have the same dimension";
+if (nof(fit)!=doa) error,"fit and alt do not have the same dimension";
 if (dimsof(rotv)(2)!=doa) error,"rotv dimensions incompatible with alt dimension";
 
 // For optics configuration, WFE and altitude, see optics_data_alt_wfe.i

@@ -97,12 +97,12 @@ func optm_conjgrad(A, b, x0, &status, precond=, maxiter=, restart=, verb=,
        run.
 
      - Keyword `maxiter` is to specify the maximum number of iterations to
-       perform which is `2⋅numberof(b) + 1` by default.
+       perform which is `2⋅nof(b) + 1` by default.
 
      - Keyword `restart` is to specify the number of consecutive iterations
        before restarting the conjugate gradient recurrence. Restarting the
        algorithm is to cope with the accumulation of rounding errors. By
-       default, `restart = min(50,numberof(b)+1)`. Set `restart` to a value
+       default, `restart = min(50,nof(b)+1)`. Set `restart` to a value
        less or equal zero or greater than `maxiter` if you do not want that any
        restarts ever occur.
 
@@ -196,8 +196,8 @@ func optm_conjgrad(A, b, x0, &status, precond=, maxiter=, restart=, verb=,
     preconditioned = !is_void(precond);
     if (is_void(verb)) verb = 0;
     if (is_void(printer)) printer = optm_conjgrad_printer;
-    if (is_void(maxiter)) maxiter = 2*numberof(b) + 1;
-    if (is_void(restart)) restart = min(50, numberof(b) + 1);
+    if (is_void(maxiter)) maxiter = 2*nof(b) + 1;
+    if (is_void(restart)) restart = min(50, nof(b) + 1);
 
     // Get tolerances.
     local fatol, frtol;
@@ -1718,7 +1718,7 @@ func optm_get_tolerances(&atol_ref, &rtol_ref, tol, atol=, name=)
     if (is_scalar(tol)) {
         atol_ref = (is_void(atol) ? 0.0 : atol + 0.0);
         rtol_ref = max(0.0, tol + 0.0);
-    } else if (numberof(tol) == 2){
+    } else if (nof(tol) == 2){
         atol_ref = tol(1) + 0.0;
         rtol_ref = max(0.0, tol(2) + 0.0);
     } else {
@@ -1739,7 +1739,7 @@ func optm_same_dims(a, b)
 {
     adims = dimsof(a);
     bdims = dimsof(b);
-    return numberof(adims) == numberof(bdims) && allof(adims == bdims);
+    return nof(adims) == nof(bdims) && allof(adims == bdims);
 }
 
 func optm_floating_point(type, what)

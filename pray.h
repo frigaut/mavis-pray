@@ -7,6 +7,9 @@ struct pray_struct
 {
   pointer images;
   pointer mircube;
+  pointer maskcube;
+  pointer truecube;
+  pointer truecoeffs;
   pointer ftobject;
   pointer variance;
   pointer norm;
@@ -28,6 +31,7 @@ struct pray_struct
   float   cobs;
   long    pupd;
   long    size;
+  long    centre;
   long    _n;
   long    _n1;
   long    _n2;

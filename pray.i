@@ -112,27 +112,22 @@ func pray_j_data(&gradient_psf,object=,ft_object=,image=,ft_image=,psf=, \
 {
   // Test on the object
   if (object!=[]) ft_object=fft(object,1);
-  else {
-    if (ft_object==[]) write,format="%s\n","object and ft_object missing";
-  }
+  else if (ft_object==[]) write,format="%s\n","object and ft_object missing";
+
 
   // Test on the image
   if (image!=[]) ft_image=fft(image,1);
-  else {
-    if (ft_image==[]) write,format="%s\n","image and ft_image missing";
-  }
+  else if (ft_image==[]) write,format="%s\n","image and ft_image missing";
 
   // Test on the psf
   if (psf!=[]) ft_psf = fft(psf,1);
-  else {
-    if (ft_psf==[]) write,format="%s\n","psf and ft_psf missing";
-  }
+  else if (ft_psf==[]) write,format="%s\n","psf and ft_psf missing";
 
-  dim2 = numberof(ft_image);
+  dim2 = nof(ft_image);
   np = long(sqrt(dim2));         //image must be square
 
   // Test on the variance
-  if ((numberof(variance) != dim2) & (numberof(variance) != 1)) {
+  if ((nof(variance) != dim2) & (nof(variance) != 1)) {
     write,format="%s\n","variance should be scalar or of same size than image.";
   }
 
@@ -173,11 +168,11 @@ func grad_param_psf(grad_psf,&grad_phase,modes_array,mask,ampli_pup,ampli_foc,pu
   // in th tomographic case, modes Array contains the modes, as viewed in the pupil for
   // the specific direction ... need to use getModesInPup before
   //pupd2 = pud^2;
-  size2 = numberof(mask);
+  size2 = nof(mask);
   size  = sqrt(size2);
 
   dummy = where(mask != 0.);
-  count = numberof(dummy);
+  count = nof(dummy);
 
   //grad_phase = (2./count)*(conj(ampli_pup)*fft(grad_psf*fft(ampli_pup,-1),1)).im;
 
@@ -193,12 +188,11 @@ func grad_param_psf(grad_psf,&grad_phase,modes_array,mask,ampli_pup,ampli_foc,pu
 }
 
 
-func psfs_from_coeffs(&pd,xfoc,coeff,&ampli_pup,&ampli_foc,rotv=,nodisp=,fromscreens=)
+func compute_psfs(&pd,xfoc,coeff,&ampli_pup,&ampli_foc,rotv=,nodisp=,fromscreens=)
 /*
  */
 {
-  nopt     = numberof(*pd.alt);
-  cent     = pd.size/2+0.5;
+  nopt     = nof(*pd.alt);
   ntarget  = dimsof(*pd.dmgsxposcub)(4);
 
   *pd.mircube *= 0;
@@ -210,7 +204,7 @@ func psfs_from_coeffs(&pd,xfoc,coeff,&ampli_pup,&ampli_foc,rotv=,nodisp=,fromscr
   for (i=1;i<=nopt;i++) {
     zv = cpt+indgen((*pd.nzer)(i));
     // ok so it's here we have to act if we want to use predefined phases instead of coeffs:
-    if (fromscreens) (*pd.mircube)(,,i) = truecube(,,i); \
+    if (fromscreens) (*pd.mircube)(,,i) = (*pd.truecube)(,,i); \
     else (*pd.mircube)(,,i) = (*pd.def)(,,zv)(,,+)*coeff(zv)(+); // from coeffs
     // else mircube has been prefill with correct phases at each optics/altitudes
     if (rotv(i)!=0) (*pd.mircube)(,,i) = rotate2((*pd.mircube)(,,i),rotv(i),xc=pd.size/2+0.5,yc=pd.size/2+0.5);
@@ -218,17 +212,18 @@ func psfs_from_coeffs(&pd,xfoc,coeff,&ampli_pup,&ampli_foc,rotv=,nodisp=,fromscr
   }
 
   if ((allof(rotv==0))&(nodisp!=1)) {
-    window,3; fma;
+    window,2; fma;
+    pltitle_height_vp = 5;
     isys = 1;
-    for (i=1;i<=min([8,nopt]);i++) {
-      mask = smooth(truecube(,,i)!=0)>0.9;
+    for (no=1;no<=min([8,nopt]);no++) {
+      // mask = smooth((*pd.truecube)(,,i)!=0)>0.9;
+      mask = (*pd.maskcube)(,,no);
       plsys,isys++;
-      pli,truecube(,,i) * mask;
-      pltitle_height_vp = 5;
-      pltitle_vp,swrite(format="True phase(%d)",i),pos=-1;
+      pli,(*pd.truecube)(,,no) * mask;
+      pltitle_vp,swrite(format="True phase(%d)",no),pos=-1;
       plsys,isys++;
-      pli,(*pd.mircube)(,,i) * mask;
-      pltitle_vp,swrite(format="Phase(%d)",i),pos=-1;
+      pli,(*pd.mircube)(,,no) * mask;
+      pltitle_vp,swrite(format="Phase(%d)",no),pos=-1;
     }
     pause,20;
   }
@@ -243,8 +238,8 @@ func psfs_from_coeffs(&pd,xfoc,coeff,&ampli_pup,&ampli_foc,rotv=,nodisp=,fromscr
 
   for (k=1;k<=ntarget;k++) {
     sphase = array(float,pd._n,pd._n);
-    xshifts = (*pd.dmgsxposcub)(,,k)+(cent-1)(-,);
-    yshifts = (*pd.dmgsyposcub)(,,k)+(cent-1)(-,);
+    xshifts = (*pd.dmgsxposcub)(,,k)+(pd.centre-1)(-,);
+    yshifts = (*pd.dmgsyposcub)(,,k)+(pd.centre-1)(-,);
 
     ishifts = int(xshifts); xshifts = xshifts - ishifts;
     jshifts = int(yshifts); yshifts = yshifts - jshifts;
@@ -275,149 +270,6 @@ func psfs_from_coeffs(&pd,xfoc,coeff,&ampli_pup,&ampli_foc,rotv=,nodisp=,fromscr
   return psfs;
 }
 
-func pray_init(&pd,usedef=,bench=,tiptilt=)
-/*
-*/
-{
-  cent    = pd.size/2+0.5;
-  nopt    = numberof(*pd.alt);
-  ntarget = numberof(*pd.xpos);
-
-  // Create mircube
-  mircube = array(float,[3,size,size,nopt]);
-  pd.mircube = &mircube;
-
-  _p  = pd.pupd;
-  _p1 = long(ceil(cent-_p/2.));
-  _p2 = long(floor(cent+_p/2.));
-  _p  = _p2-_p1+1;
-
-  pd._n  = _p+4;
-  pd._n1 = _p1-2;
-  pd._n2 = _p2+2;
-
-  // Init ipupil
-  ipupil = float(MakePupil(pd.size,pd.pupd,xc=cent,yc=cent,cobs=pd.cobs));
-  pd.ipupil = &ipupil;
-
-  // Init def
-  def	= array(float,[3,pd.size,pd.size,(*pd.nzer)(sum)]);
-  nz12 = (*pd.nzer)(cum);
-  psize = pd.teldiam/pd.pupd;
-  cpt = 0;
-
-  for (k=1;k<=nopt;k++) {
-    patchDiam = long(pd.pupd+2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*(abs(alt(k)))/psize);
-    prepzernike,pd.size,patchDiam,cent,cent;
-
-    // extern focus;
-    // FIXME: there is only one array and several nopt? yes, because it is
-    // way oversized and the amplitude doesn't really matter?
-    pd.focus = &zernike_ext(4); // true focus for extra focal image calculations
-
-    if (usemodes=="zer") {
-      // we want zernike_ext but not too much (1 pixel), so we create our own mask
-      mask = smooth(zernike(1))>0.5;
-      for (i=4;i<=nzer(k)+3;i++) {
-        cpt ++;
-        def(,,cpt) = zernike_ext(i)*mask;
-      }
-      if (tiptilt != []) {
-       write,format="%s\n","Estimation of global TipTilt";
-        selz = _(4,2,3,4+indgen(nzer(k)+10));
-        // get rid of spherical
-        //selz(10) = max(selz)+1;
-        for (i=4;i<=nzer(k)+3;i++) {
-          cpt ++;
-          //def(,,cpt) = zernike_ext(i)*mask;
-          def(,,cpt) = zernike_ext(selz(i-3))*mask;
-        }
-      }
-    } else if (usemodes=="kl") { // use KL
-      if ((k==1)&verbose) write,format="%s\n","Using KL instead of Zernike";
-      require,"yaokl.i";
-      pup1 = [];
-      // def *= 0;
-      thispatch = ((patchDiam+2)/2)*2;
-      // computes KLs, remove Tip and Tilt like
-      kl = make_kl((*pd.nzer)(k)+2,thispatch,v,obas,pup1,oc=0.0,nr=128,verbose=0)(,,3:);
-      // normalise so that future coef optimisation will be about the same amplitude
-      kl = kl*(1./indgen((*pd.nzer)(k)+2)^0.8)(-,-,3:);
-      //    kl = order_kls(kl,patchDiam,upto=20); // why is that not necessary?
-      // def is supposed to have zernikes in them, with def(,,1) = true focus
-      def(,,2+nz12(k):nz12(k+1)) *= 0.;
-      // stick in the KL, preserving zernike focus in position 1
-      def(size/2-patchDiam/2:size/2+patchDiam/2+1, \
-        size/2-patchDiam/2:size/2+patchDiam/2+1,2+nz12(k):nz12(k+1)) = kl(,,2:);
-      if (k==1) def(,,1+nz12(k)) = *pd.focus;
-      if (k==nopt) def(,,1+nz12(k)) = *pd.focus;
-    } else if (usemodes=="dh") { // use DH
-      if ((k==1)&verbose) write,format="%s\n","Using DH instead of Zernike";
-      require,"yaodh.i";
-      sim.verbose = 0;
-      pup1 = [];
-      // def *= 0;
-      thispatch = ((patchDiam+2)/2)*2;
-      // thispatch = patchDiam; //write,thispatch;
-      // computes KLs, remove Piston, Tip and Tilt
-      dh = make_diskharmonic(pd.size,thispatch,(*pd.nzer)(k)+6,cobs=0.,xc=size/2+0.5,yc=size/2+0.5)(,,4:(*pd.nzer)(k)+3);
-      // focus is in position 2 now. astig in 1, put astig in 2
-      dh(,,2) = dh(,,1); // focus will be added below in pos 1
-      // normalise so that future coef optimisation will be about the same amplitude
-      dh = dh*(1./indgen((*pd.nzer)(k)+6)^0.8)(-,-,4:(*pd.nzer)(k)+3);
-      // def is supposed to have zernikes in them, with def(,,1) = true focus
-      def(,,1+nz12(k):nz12(k+1)) *= 0.;
-      // stick in the DH, preserving zernike focus in position 1
-      def(,,2+nz12(k):nz12(k+1)) = dh(,,2:);
-      // if (k==2) error;
-      // def = def(,,_(3,1,2,indgen(4:cpt)));}
-      lpup = (def(,,1+nz12(k)) != 0);
-      if (k==1) def(,,1+nz12(k)) = *pd.focus;
-      if (k==nopt) def(,,1+nz12(k)) = *pd.focus;
-      // if (k==1) def(,,1+nz12(k):nz12(k+1)) = def(::-1,::-1,1+nz12(k):nz12(k+1));
-      // window,1; tv,def(,,nz12(k)+7); pltitle,swrite(format="%d",k); pause,1000;
-    } else error,"usemodes undefined";
-
-    // if (bench != []) {
-    //   write,format="%s\n","Using Bench configuration (flip/rotations)";
-    //   // rotation and flip to get the same as MYST zernikes:
-    //   def = transpose(def,[2,1])(::-1,::-1,);
-    //   // normalization factor: one unit of tilt gives 1 arcsec:
-    //   //current = (zernike_ext(2))(size/2,size/2)-(zernike_ext(2))(size/2-1,size/2);
-    //   //fact = teldiam/pupd*4.848/current;
-    //   //def(,,nzer(k)-nzer(1)+1:cpt) = float(def(,,nzer(k)-nzer(1)+1:cpt)*fact);
-    // }
-  }
-  pd.def = &def;
-
-  // Init dmgsXYposcub : useful for get2dPhase
-  xref = indgen(pd._n)-(pd._n+1)/2.;
-  yref = indgen(pd._n)-(pd._n+1)/2.;
-
-  dmgsxposcub = dmgsyposcub = array(float,[3,pd._n,nopt,ntarget]);
-
-  for (n=1;n<=ntarget;n++) {
-    // loop on pseudo-DMs
-    for (no=1;no<=nopt;no++) {
-      // offsets of the center of beam on DM NO
-      xoff = (*pd.xpos)(n)*4.848e-6*(*pd.alt)(no)/psize;
-      yoff = (*pd.ypos)(n)*4.848e-6*(*pd.alt)(no)/psize;
-      dmgsxposcub(,no,n) = xref + xoff;
-      dmgsyposcub(,no,n) = yref + yoff;
-    }
-  }
-
-  pd.dmgsxposcub = &dmgsxposcub;
-  pd.dmgsyposcub = &dmgsyposcub;
-
-  szdef = dimsof(def);
-  def_pup = array(float,[5,szdef(2),szdef(3),szdef(4),ntarget,nrot]);
-  for (n=1;n<=nrot;n++) {
-    for (i=1;i<=ntarget;i++) def_pup(,,,i,n) = get_def_in_pupil_from_dir(pd,i,rotv=rotv(,n));
-  }
-  pd.def_pup = &def_pup;
-
-}
 
 func get_def_in_pupil_from_dir(pd,ndir,rotv=)
 /*
@@ -436,8 +288,7 @@ func get_def_in_pupil_from_dir(pd,ndir,rotv=)
   // _n1         = pray_data._n1;
   // _n2         = pray_data._n2;
 
-  cent        = pd.size/2+0.5;
-  nopt        = numberof(*pd.alt);
+  nopt        = nof(*pd.alt);
 
   psnx        = dimsof(*pd.mircube)(2);
   psny        = dimsof(*pd.mircube)(3);
@@ -445,8 +296,8 @@ func get_def_in_pupil_from_dir(pd,ndir,rotv=)
   if (rotv==[]) rotv = array(0.,nopt);
 
   // geometry init : get the proper points coordinates : dmgsxposcub
-  xshifts = (*pd.dmgsxposcub)(,,ndir)+(cent-1)(-,);
-  yshifts = (*pd.dmgsyposcub)(,,ndir)+(cent-1)(-,);
+  xshifts = (*pd.dmgsxposcub)(,,ndir)+(pd.centre-1)(-,);
+  yshifts = (*pd.dmgsyposcub)(,,ndir)+(pd.centre-1)(-,);
 
   ishifts = int(xshifts); xshifts = xshifts - ishifts;
   jshifts = int(yshifts); yshifts = yshifts - jshifts;
@@ -499,21 +350,21 @@ func pray_error(param,&gradient,extra=)
   local deltafoc;
 
   coeffs   = param;
-  nmodes   = numberof(coeffs);
+  nmodes   = nof(coeffs);
 
   ntarget = dimsof(*extra.images)(4);
   // int crit_array
-  crit_array = array(0.,numberof(*extra.deltafoc)*ntarget);
-  gradientInterm = array(float,nmodes,numberof(*extra.deltafoc)*ntarget);
+  crit_array = array(0.,nof(*extra.deltafoc)*ntarget);
+  gradientInterm = array(float,nmodes,nof(*extra.deltafoc)*ntarget);
 
   //----------------------------------------------------------------
   //Extra-Focal images (we can introduce as many images as we want)
   ima = (*extra.images)(,,*);
-  for (n=1;n<=numberof(*extra.deltafoc);n++) {
+  for (n=1;n<=nof(*extra.deltafoc);n++) {
     tmp = coeffs;
     // tmp(1) += deltafoc(n);
     // below rotv defined where? FIXME
-    psfs = psfs_from_coeffs(extra,(*extra.deltafoc)(n),tmp,*pd.ampli_pup,*pd.ampli_foc,rotv=rotv(,config.roti(n)));
+    psfs = compute_psfs(extra,(*extra.deltafoc)(n),tmp,*pd.ampli_pup,*pd.ampli_foc,rotv=rotv(,config.roti(n)));
     for (i=1;i<=ntarget;i++) {
       ftPsf = fft(psfs(,,i),1);
       // Estimation of the criterion associated with image #i
@@ -581,19 +432,19 @@ func pray(images,pd,deltafoc,variance,object,disp=,verbose=,\
   }
   size = dims(2);
   ntarget = dims(4);
-  if (numberof(*pd.xpos) != ntarget) error,"incompatible images and xpos size";
-  if (numberof(*pd.ypos) != ntarget) error,"incompatible images and ypos size";
+  if (nof(*pd.xpos) != ntarget) error,"incompatible images and xpos size";
+  if (nof(*pd.ypos) != ntarget) error,"incompatible images and ypos size";
 
 
-  // pray init
-  status = pray_init(pd);
+  // pray init, already done within mavis_pray()
+  // status = init_defs(pd);
 
   // ... testing the size and content of variance
   if (variance==[]) {
     variance = sigma^2;
     sz_variance = 1;
   } else {
-    sz_variance = numberof(variance)
+    sz_variance = nof(variance)
       if ((sz_variance != 1) & (sz_variance != size^2)) {
         write,format="%s\n","variance must be a scalar or of same size than image.";
         error;
@@ -623,7 +474,7 @@ func pray(images,pd,deltafoc,variance,object,disp=,verbose=,\
 
   ftobject=fft(object,1);
 
-  if (numberof(threshold) == 0) {
+  if (nof(threshold) == 0) {
     if (typeof(images) == "float") {
       conv_threshold = 1e-7;
     } else conv_threshold = 1e-16;
@@ -692,17 +543,17 @@ func myobserver(iters,evals,rejects,t,x,f,g,gpnorm,alpha,fg,extra=)
   if (extra==[]) return;
   if ((iters>10) & ((iters%10)!=0)) return;
   coeff = x;
-  if (window_exists(8)) window,8;
-  else window,8,wait=1,dpi=long(dpi_target_small);
+  if (window_exists(4)) window,4;
+  else window,4,wait=1,dpi=long(dpi_target_small);
   fma; limits,square=0;
   plh,coeff;
   if (initphase=="coefs") {
-	  plh,truecoeff,color="red";
-	  plh,truecoeff-coeff,color="blue";
+	  plh,(*extra.truecoeffs),color="red";
+	  plh,(*extra.truecoeffs)-coeff,color="blue";
   }
   // coeff(1) += firstdefoc;
-  psfs = psfs_from_coeffs(extra,firstdefoc,coeff);
-  window,7,wait=1;
+  psfs = compute_psfs(extra,firstdefoc,coeff);
+  window,3,wait=1;
   disp_im = build_bigim(psfs,*extra.xpos,*extra.ypos);
   extern bigim3; bigim3 = disp_im;
   pli,disp_im; limits,square=1;

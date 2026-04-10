@@ -50,25 +50,40 @@ write,format="%s\n%s\n","Or","res=doitall([10,20,50],10,8,[0.,-1.5,1.5],10000,0.
 
 system,"echo 'res=mavis_pray(,8,[0,-1.5,1.5],1000,0.,,disp=1,maxiter=50,rseed=random())' | wl-copy";
 
-require,"pray.i";
+require,"mavis_pray.h";
+require,"mavis_pray_init.i";
 require,"mavis_pray_lib.i";
+require,"pray.i";
 
 func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
 	rseed=,verbose=,noinc=)
 {
   extern pray_data;
+  extern last_random_seed; // in case, to be able to repeat this random realisation
 
   if (!noinc) include,"mavis_pray_conf.i",1;
 
-  // parameters (dynamic)
+  //****************************************
+  // parameters (dynamic) and default values
+  //****************************************
+  if (usemodes==[]) error,"usemodes undefined (see config file mavis_pray_conf.i)";
+  if (geometry==[]) error,"geometry undefined (see config file mavis_pray_conf.i)";
+  if (fovshape==[]) error,"fovshape undefined (see config file mavis_pray_conf.i)";
   if (maxiter==[])  maxiter = 100;
   if (verbose==[])  verbose = 0;
   if (deltafoc==[]) deltafoc = [-1.,0.,1.];
   if (!flux)        flux = 1000.;
   if (!ngrid)       ngrid = 4;
-  if (usemodes==[]) error,"usemodes undefined (see config file mavis_pray_conf.i)";
-  if (geometry==[]) error,"geometry undefined (see config file mavis_pray_conf.i)";
-  if (fovshape==[]) error,"fovshape undefined (see config file mavis_pray_conf.i)";
+  if (!osampl)      osampl = 1;
+  if (rseed==[])    rseed = 0.3; else last_random_seed = rseed;
+  if (fit==[])      fit = array(1,nopt);
+  if (nof(fit)!=nof(alt)) error,"sizeof(fit) != sizeof(alt)";
+
+  random_seed,rseed;
+
+  nopt = nof(alt);      // number of optics in train
+  nfoc = nof(deltafoc); // number of extra focal distance in config
+  nrot = dimsof(rotv)(0);    // number of rotation sets in config
 
   // Types check
   deltafoc = float(deltafoc);
@@ -76,36 +91,31 @@ func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
   flux     = float(flux);
   ron      = float(ron);
 
-  nopt = numberof(alt); // number of optics in train
-  nfoc = numberof(deltafoc); // number of extra focal distance in config
-  nrot = dimsof(rotv)(0); // number of rotation sets in config
+  //***********************
+  // windows initialisation
+  //***********************
+  status = init_windows([1,2,3,4,5]);
 
-  if (fit==[]) fit = array(1,nopt);
-  if (numberof(fit)!=nopt) error,"numberof(fit) != nopt";
+  //**********************
+  // other initialisations
+  //**********************
 
   // build config extra-focal + rot from the entries above:
-  config = array(config_struct,nfoc*nrot);
-  config.foc = array(deltafoc,nrot)(*);
-  tmp = [];
-  for (i=1;i<=nrot;i++) grow,tmp,array(i,nfoc);
-  config.roti = tmp;
-  deltafoc_orig = deltafoc;
+  // the idea is that we do not modify the other functions going through all
+  // extra-focal distances, we just will apply for each EFD the rotation of the
+  // system that applies (package initially developed w/o rotation feature)
+  status = init_config(config);
+
+  deltafoc_orig = deltafoc; // save original
   deltafoc = config.foc; // we replace for simplicity in the rest of the code.
-  nfoc = numberof(deltafoc);
+  nfoc = nof(deltafoc); // update
 
   pupd = long(size/2/osampl);
+  centre = size/2+0.5; // osampl?
+  variance = (ron?ron^2:0.0001);   // noise variance
 
-  // window init
-  win = [1,3,7,8,15];
-  for (i=1;i<=numberof(win);i++) {
-    if (window_exists(win(i))) {
-      window,win(i);
-      if (win(i)!=15) { limits; fma; }
-    }
-  }
-
-  nw = clip(nopt,4,8); nw = 8;
-  if (!window_exists(3)) plsplit,2,nw,win=3,style="nobox.gs",square=1,dpi=long(dpi_target*1.5),margin=-0.02,vp=[0.206+0.0115*(nw-3),0.656+0.0115*(nw-3),0.44,0.85];
+  // configuration printout
+  status = configuration_printout();
 
   // define and fill pray data structure
   pray_data         = pray_struct();
@@ -113,196 +123,61 @@ func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
   pray_data.cobs    = cobs;
   pray_data.pupd    = pupd;
   pray_data.size    = size;
+  pray_data.centre  = centre;
   pray_data.nzer    = &nzer;
   pray_data.alt     = &alt;
 
-  // compute values of variables used later
-  // noise variance
-  variance = (ron?ron^2:0.0001);
-
   // target positions
-  if (strpart(geometry,1:3)=="squ") {
-    tmp = (indices(ngrid)-ngrid/2-1);
-    tmp += (odd(ngrid)?0:0.5);
-    tmp *= fullfield/ngrid;
-    xpos = tmp(,,1)(*); ypos = tmp(,,2)(*);
-  } else if (strpart(geometry,1:3)=="hex") {
-    tmp = (indices(ngrid+4)-(ngrid+4)/2-1.);
-    tmp(,,1) += 0.5*(indgen(ngrid+4)%2)(-,);
-    tmp(,,1) += (odd(ngrid)?0:0.5);
-    tmp(,,2) *= sin(60*pi/180.);
-    tmp *= fullfield/(ngrid-0.8);
-    w = where(abs(tmp(,,1))<(fullfield/2.)&abs(tmp(,,2))<(fullfield/2.));
-    xpos = tmp(,,1)(w); ypos = tmp(,,2)(w);
-  } else error,"geometry undefined";
+  status = init_target_positions(geometry,fullfield,ngrid,gridpad,xpos,ypos);
+  pray_data.xpos = &xpos; pray_data.ypos = &ypos;
+  ntarget = nof(xpos);
 
-  if (fovshape=="round") {
-    if (gridpad==[]) gridpad = 0.;
-    w = where(abs(xpos,ypos)<=(fullfield/2.+gridpad));
-    xpos = xpos(w); ypos = ypos(w);
-  }
+  // Init ipupil
+  pray_data.ipupil = &float(make_pupil(size,pupd,xc=centre,yc=centre,cobs=cobs));
 
-  pray_data.xpos = &xpos;
-  pray_data.ypos = &ypos;
+  // init defs, etc used by pray, fills pray_data
+  status = init_defs(pray_data);
 
-  // configuration printout
-  write,format="%s\n","--------------------------------------------------------------------";
-  write,format="%s\n","Pray for MAVIS (mavis_pray and pray) - System Configuration";
-  write,format="Number of optics: %d, Number of extra-focal pos.: %d, number of rotation: %d\n",nopt,numberof(deltafoc),dimsof(rotv)(0);
-  write,format="%s","Extra focal distances: "; deltafoc_orig;
-  write,format="%s","Optics conjug. altitude: "; alt;
-  write,format="%s","Optics WFE [nm]: "; nm_rmsv;
-  write,format="Number of modes (%s) per optics: ",strcase(1,usemodes); nzer;
-  write,format="%s","Fit optics?: "; fit;
-  perfrom = (initphase=="screens"?"Power spectrum":"Mode coefficients");
-  if (initphase=="screens") perfrom += swrite(format=" (slope=%.3f)",ps_slope);
-  write,format="Init phase perturbation from %s\n",perfrom;
-  for (i=1;i<=nrot;i++) { write,format="Optics rotation, config %d: ",i; rotv(,i); }
-  write,format="Number of sources = %d across %.0f\" FoV, %d total, %s geometry\n",ngrid,fullfield,numberof(xpos),geometry;
-  write,format="source flux = %.1f, RON= %g\n",flux,ron;
-  write,format="%s\n","Current random seed stored in extern last_random_seed, use as rseed to repeat current";
-  write,format="%s\n","--------------------------------------------------------------------";
+  // init masks (valid phase points at each optics)
+  status = init_masks(pray_data);
 
-  // window,8; fma; plp,ypos,xpos; limits; limits,square=1; hitReturn;
-
-  // pray init
-  status = pray_init(pray_data);
-
-  // init for Strehl estmation.
+  // Airy pattern for Strehl estimation.
   airy = roll(abs(fft(*pray_data.ipupil,1))^2);
-  airy = airy/sum(airy);
-  peak_airy = max(airy);
+  peak_airy = max(airy/sum(airy));
 
-  // create psfs
-  coeff = cmax = cmin = [];
-  nz12 = nzer(cum);
-  extern last_random_seed;
-  if (rseed!=[]) last_random_seed = rseed;
-  random_seed,(rseed?rseed:0.3);
-  // var = 0.;
-  for (i=1;i<=nopt;i++) {
-    c = weight(i)*(random(nzer(i))-0.5)/sqrt(indgen(nzer(i)));
-    c(1) = 0.;
-    cmx = 10*weight(i)/sqrt(indgen(nzer(i)))*fit(i);
-    cmx(1) = 0.; // FIXME
-    // if (i>=2) cmx *= 0;
-    cmn = -cmx;
-    grow,coeff,c;
-    grow,cmax,cmx;
-    grow,cmin,cmn;
-  }
-  // write,var,exp(-var/2.);
-  coeff = coeff(*); cmax = cmax(*); cmin = cmin(*);
-  extern truecoeff; truecoeff = coeff;
-  if (coeff_offsets!=[]) coeff -= coeff_offsets;
-
-  // fill mircube with phases
-  if (initphase=="screens") {
-	  for (i=1;i<=nopt;i++) {
-	  	(*pray_data.mircube)(,,i) = make_phase_screens(*pray_data.ipupil,lambda, \
-					nm_rmsv(i),ps_slope,rseed=rseed+i*0.01,remove_tt=1,remove_foc=1);
-	  }
-		// zero coefs:
-		coeff *=0;
-		truecoeff *= 0;
-		cmin = cmin * 1e3;
-		cmax = cmax * 1e3;
-  }
-
-  // compute true phase from truecoeffs for display comparison
-  extern truecube;
-  truecube = array(0.,[3,size,size,nopt]);
-  def = *pray_data.def;
-  cpt = 0;
-  for (i=1;i<=nopt;i++) {
-    zv = cpt+indgen(nzer(i));
-    lpup = def(,,zv(2)) != 0;
-    if (initphase=="screens") truecube(,,i) = (*pray_data.mircube)(,,i)*lpup; \
-    else truecube(,,i) = def(,,zv)(,,+)*truecoeff(zv)(+);
-    cpt += nzer(i);
-  }
-  def = [];
+  // create initial perturbation (coef/screens, PSFs)
+  status = init_perturbation(pray_data,coeff,cmin,cmax);
 
   // ok first let's do an estimate of Strehl for the deltafoc=0 and scale the
-  // phase screens from there:
+  // phase screens or coefficients from there:
+  // (<- FIXME, doesn't work for coeff)
   if (strehl_normalise) {
     write,format="Normalising Original Strehl to %.1f%%\n",100*strehl_target;
-    w0 = where(deltafoc==0);
-    if (numberof(w0)==0) error,"For Stehl normalisation, you have to have one of the deltafoc=0";
-    ima = [];
-    for (i=1;i<=numberof(w0);i++) {
-      grow,ima,psfs_from_coeffs(pray_data,0,coeff,amp1,amp2, \
-        rotv=rotv(,config.roti(w0(i))),nodisp=1,fromscreens=(initphase=="screens"));
-    }
-    ima = ima/ima(*,)(sum,)(-,-,); // normalisation
-    strehlavg = avg(ima(*,)(max,)/peak_airy);
-    fact = sqrt(log(strehl_target)/log(strehlavg));
-    *pray_data.mircube *= fact;
-    truecube *= fact;
-    truecoeff *= fact;
-  }
-
-
-  res = [];
-  for (i=1;i<=nfoc;i++) {
-    // coeff(1) = deltafoc(i);
-    // write,"Computing initial images";
-    // write,config.roti(i),rotv(,config.roti(i));
-    grow,res,&psfs_from_coeffs(pray_data,deltafoc(i),coeff,amp1,amp2, \
-    rotv=rotv(,config.roti(i)),nodisp=1,fromscreens=(initphase=="screens"));
-  }
-  // OK so it's the implementation that is wrong.
-  // probably we need to save the truecube and compare to it later.
-
-  // simple square object ...
-  object=array(float,[2,size,size]);
-  object(size/2+1,size/2+1) = flux;
-  // creating images
-  ntarget = numberof(xpos);
-  images = array(float,[4,size,size,ntarget,nfoc]);
-  strehlv = array(0.,ntarget);
-  for (n=1;n<=nfoc;n++) {
-    for (i=1;i<=ntarget;i++) {
-      // images are centred, object is centred res is rol (so eclat(res) is centred)
-      // images(,,i,n) = fft_convolve(object,eclat((*res(n))(,,i)));
-      images(,,i,n) = roll((*res(n))(,,i))*flux;
-      if (deltafoc(n)==0) \
-        strehlv(i) = max(images(,,i,n)/sum(images(,,i,n)))/peak_airy;
-    }
-    if (deltafoc(n)==0) {
-      rotvstr = strjoin(swrite(format="%.0f",rotv(,config(n).roti)),",");
-      write,format="\033[31mStrehl over FoV (rot=[%s]): avg=%.1f%%\033[0m rms=%.1f%%\n", \
-        rotvstr,100*avg(strehlv),100*strehlv(rms);
-      if (n==1) start_strehl = [avg(strehlv),strehlv(rms)];
-      // FIXME, right now the start_strehl is for 180 while end_strehl is for 0
-    }
-
-    if (disp&&(n==1)) {
-      // display for first defoc plane
-      disp_im = build_bigim(roll(images(,,,n)),xpos,ypos,variance);
-      extern bigim2; bigim2 = disp_im;
-      if (window_exists(n)) window,n;
-      else window,n,wait=1,dpi=dpi_target;
-      fma; pli,disp_im; limits,square=1;
-      pltitle,swrite(format="%.2f-focus images - data",deltafoc(n));
-      pause,50;
+    for (i=1;i<=4;i++) { // iterative, this works.
+      status = strehl_normalisation(pray_data,coeff,config,rotv,peak_airy);
     }
   }
-  images = images + random_normal(dimsof(images))*sqrt(variance);
 
-  pray_data.images = &images;
+  status = init_images(pray_data,config,object,start_strehl);
 
-  res = pray(images,pray_data,deltafoc,variance,object,disp=disp,verbose=verbose,\
+  //**************************************************************************
+  // Call pray, which does the minimisation (with calls to vmlmb + pray_error)
+  //**************************************************************************
+  res = pray(*pray_data.images,pray_data,deltafoc,variance,object,disp=disp,verbose=verbose,\
     threshold=threshold,nbiter=maxiter);
 
+  //***************************************
+  // Analyse and plot results
+  //***************************************
+
   // check estimation results:
-  origcube = truecube;
+  origcube = *pray_data.truecube;
   // first compute mircube for 0 focus:
-  psfs_from_coeffs,pray_data,0,res,amp1,amp2,nodisp=1,fromscreens=0;
+  compute_psfs,pray_data,0,res,amp1,amp2,nodisp=1,fromscreens=0;
   // now pray_data.mircube should contains the estimated phase at foc=0.
   // subtract estimate from original phases:
-  truecube = origcube - *pray_data.mircube;
-  psfs = psfs_from_coeffs(pray_data,0,res*0,amp1,amp2,nodisp=1,fromscreens=1);
+  *pray_data.truecube = origcube - *pray_data.mircube;
+  psfs = compute_psfs(pray_data,0,res*0,amp1,amp2,nodisp=1,fromscreens=1);
   disp_im = build_bigim(psfs,xpos,ypos,variance*0);
   window,1;
   fma; pli,disp_im; limits,square=1;
@@ -326,13 +201,15 @@ func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
 }
 // END OF MAVIS_PRAY
 
+// The following functions are mavis_pray wrappers to run it repeatedly
+// or versus some changing parameters (number of modes etc)
 func perfvsnit(nitv,ngrid,deltafoc,flux,ron,rseed=,disp=)
 {
   nitv = _(0,nitv);
   stvsnit = nitv*0.+1;
   st_start_vsnit = st_start_spatial_rms_vsnit = nitv*0.+1;
   st_end_vsnit = st_end_spatial_rms_vsnit = nitv*0.+1;
-  for (nn=2;nn<=numberof(nitv);nn++) {
+  for (nn=2;nn<=nof(nitv);nn++) {
     strehls = mavis_pray(,ngrid,deltafoc,flux,ron,init_strehlv,disp=disp,maxiter=nitv(nn),rseed=rseed);
     st_start_vsnit(nn) = strehls(1,1);
     st_start_spatial_rms_vsnit(nn) = strehls(2,1);
@@ -346,8 +223,8 @@ func perfvsnit(nitv,ngrid,deltafoc,flux,ron,rseed=,disp=)
   st_end_spatial_rms_vsnit(1) = strehls(2,1);
 
   cw = current_window();
-  if (window_exists(15)) window,15;
-  else window,15,wait=1,dpi=long(dpi_target_small);
+  if (window_exists(5)) window,5;
+  else window,5,wait=1,dpi=long(dpi_target_small);
   errnm = lambda/2/pi*sqrt(-log(st_end_vsnit));
   fma;
   plg,errnm,nitv,width=3;
@@ -376,7 +253,7 @@ func doitall(nitv,nsamp,ngrid,deltafoc,flux,ron,disp=)
   else window,1,wait=1,dpi=long(dpi_target_small);
   fma;
   w = where((abs(allstend(0,)-median(allstend(0,)))<3*allstend(0,rms)));
-  write,format="Kept %d out of %d samples\n",numberof(w),nsamp;
+  write,format="Kept %d out of %d samples\n",nof(w),nsamp;
   ststartavg = allststart(,w)(,avg); stendavg = allstend(,w)(,avg);
   ststartrms = allststart(,w)(,rms); stendrms = allstend(,w)(,rms);
   // write,format="Final Strehl [nm] = %.2fnm +/- %.2f\n",erravg(0),errrms(0);
