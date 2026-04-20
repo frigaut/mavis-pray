@@ -6,7 +6,7 @@ func configuration_printout(void)
   write,format="%s","Extra focal distances: "; deltafoc_orig;
   write,format="%s","Optics conjug. altitude: "; alt;
   write,format="%s","Optics WFE [nm]: "; nm_rmsv;
-  write,format="Number of modes (%s) per optics: ",strcase(1,usemodes); nzer;
+  write,format="Number of modes (%s) per optics: ",strcase(1,usemodes); nmod;
   write,format="%s","Fit optics?: "; fit;
   perturb_from = (initphase=="screens"?"Power spectrum":"Mode coefficients");
   if (initphase=="screens") perturb_from += swrite(format=" (slope=%.3f)",ps_slope);
@@ -30,11 +30,12 @@ func strehl_normalisation(&pd,&coeff,config,rotv,peak_airy)
   }
   ima = ima/ima(*,)(sum,)(-,-,); // normalisation
   strehlavg = avg(ima(*,)(max,)/peak_airy);
-  fact = sqrt(log(strehl_target)/log(strehlavg));
+  // fact = sqrt(log(strehl_target)/log(strehlavg));
+  fact = (log(strehl_target)/log(strehlavg))^0.25;
   if (debug) write,format="Current Strehl average = %.1f%%, scaling by %f\n",100*strehlavg,fact;
-  *pray_data.mircube *= fact;
-  *pray_data.truecube *= fact;
-  *pray_data.truecoeffs *= fact;
+  *pd.mircube *= fact;
+  *pd.truecube *= fact;
+  *pd.truecoeffs *= fact;
   coeff *= fact;
   return 0;
 }

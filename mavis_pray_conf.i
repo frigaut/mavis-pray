@@ -1,45 +1,46 @@
-usemodes  = "zer";        // "dh" (recommended, works well), "kl" or "zer"
-geometry  = "hexagonal"; // "square" or "hexagonal"
+usemodes  = "kl";        // "dh" (recommended, works well), "kl" or "zer"
+geometry  = "square"; // "square" or "hexagonal"
 // fovshape  = "round";     // "round" if desired if not will default to square
 fovshape  = "square";     // "round" if desired if not will default to square
-// initphase = "coefs";   // "coefs" or "screens"
-initphase = "screens";   // "coefs" or "screens"
+initphase = "coefs";   // "coefs" or "screens"
+// initphase = "screens";   // "coefs" or "screens"
 
 // parameters defined statically:
 alt     = [0.,6000,13500.]; //45000 seems to be the limit
-nzer    = [50,50,50];
+nmod    = [50,50,50];
 nm_rmsv = [30,50,30]*1.2; // has to be defined if initphase = "screens"
 fit     = [1,1,1];
 rotv    = [[0.,0,0],[180,0,0]];
 // rotv = [[0.,0,0],[120,120,0],[240,240,0]];
 
 // alt     = [0.];
-// nzer    = [8];
+// nmod    = [40];
 // nm_rmsv = [80]; // has to be defined if initphase = "screens"
 // fit     = [1];
 // rotv    = [[0.]];
 
 // alt     = [0.,13500.]; //45000 seems to be the limit
-// nzer    = [150,150];
+// nmod    = [150,150];
 // nm_rmsv = [30,30]*1.7; // has to be defined if initphase = "screens"
 // fit     = [1,1];
 // rotv    = [[0.,0],[180.,0]];
 
-// alt       = [-25500,-6000,0,6000,13500.,20000]; // altitude of optics, length nopt
-// nzer      = [50,50,100,100,100,50]; // number of modes per optics
-// fit       = [0,0,1,1,1,0];
-// nm_rmsv   = [15,15,30,30,30,15]*1.5; // has to be defined if initphase = "screens"
-// rotv      = [[0.,0,0,0,0,0],\
-//              [180,180,0,0,0,0]]; // rotation of optics, as many line as configs
+alt       = [-25500,-6000,0,6000,13500.,20000]; // altitude of optics, length nopt
+nmod      = [50,50,100,100,100,50]; // number of modes per optics
+fit       = [0,0,1,1,1,0];
+nm_rmsv   = [15,15,30,30,30,15]*1.5; // has to be defined if initphase = "screens"
+rotv      = [[0.,0,0,0,0,0],\
+             [180,180,0,0,0,0]]; // rotation of optics, as many line as configs
+fit       = fit*0+1;
 
 // alt       = [-25500,0,13500.,20000]; // altitude of optics, length nopt
-// nzer      = [150,150,150,150]; // number of modes per optics
+// nmod      = [150,150,150,150]; // number of modes per optics
 // fit       = [0,1,1,0];
 // nm_rmsv   = [30,30,30,30]*1.3; // has to be defined if initphase = "screens"
 // rotv      = [[0.,0,0,0]];
 
 // alt     = [0.,87000.]; //45000 seems to be the limit
-// nzer    = [50,50];
+// nmod    = [50,50];
 // nm_rmsv = [30,30]*1.5; // has to be defined if initphase = "screens"
 // fit     = [1,1];
 // rotv    = [[0.,0]];
@@ -48,31 +49,31 @@ rotv    = [[0.,0,0],[180,0,0]];
 //updated march 30 2026:
 // alt       = [45.5,13.6,6  ,1.2,0.,-1.9,-3.3,-4.4,-8.3,-12.4,-16.5,-23.9,-29.9,-36.2]*1000; // altitude of optics, length nopt
 // nm_rmsv   = [10. ,30  ,30 ,30 ,30,47  ,6.4 ,6.4 ,6.6 ,6.6  ,6.6  ,6.9   ,48   ,5];
-// nzer      = [50,100,100,50,100,50,50,50,50,50,50,50,50,50]; // number of modes per optics
+// nmod      = [50,100,100,50,100,50,50,50,50,50,50,50,50,50]; // number of modes per optics
 // fit       = [0,1,1,0,1,0,0,0,0,0,0,0,0,0];
 // rotv      = [[0.,0,0,0,0,0,0,0,0,0,0,0,0,0],\
 //              [180,180,180,180,180,180,180,180,180,90,0,0,0,0]]; // rotation of optics, as many line as configs
 // fit       = fit*0+1;
 
-alt       = [45.5,13.6,6   ,1.2 ,0.,-1.9,-4 ,-12.4,-23.9,-29.9]*1000; // altitude of optics, length nopt
-nm_rmsv   = [10. ,30  ,30  ,30  ,30,47  ,9  ,11.0 ,6.9   ,48  ]*0.86;
-nzer      = [50  ,100 ,100 ,50  ,100,50 ,50 ,50   ,50    ,50]; // number of modes per optics
-fit       = [0   ,1   ,1   ,0   ,1  ,0  ,0  ,0    ,0     ,0];
-rotv      = [[0. ,0   ,0   ,0   ,0  ,0  ,0  ,0    ,0     ,0],
-             [180,180 ,180 ,180 ,180,180,180,90   ,0     ,0]];
-fit       = fit*0+1;
+// alt       = [45.5,13.6,6   ,1.2 ,0.,-1.9,-4 ,-12.4,-23.9,-29.9]*1000; // altitude of optics, length nopt
+// nm_rmsv   = [10. ,30  ,30  ,30  ,30,47  ,9  ,11.0 ,6.9   ,48  ]*0.86;
+// nmod      = [50  ,100 ,100 ,50  ,100,50 ,50 ,50   ,50    ,50]; // number of modes per optics
+// fit       = [0   ,1   ,1   ,0   ,1  ,0  ,0  ,0    ,0     ,0];
+// rotv      = [[0. ,0   ,0   ,0   ,0  ,0  ,0  ,0    ,0     ,0],
+//              [180,180 ,180 ,180 ,180,180,180,90   ,0     ,0]];
+// fit       = fit*0+1;
 
 // just for res=get_non_normalised_strehls()
 // alt       = [45.5,13.6,6   ,1.2 ,0. ,-1.9,-4 ,-12.4,-23.9 ,-29.9]*1000; // altitude of optics, length nopt
 // nm_rmsv   = [10. ,30  ,30  ,30  ,30 ,47  ,9  ,11.0 ,6.9   ,48   ];
-// nzer      = [2   ,2   ,2   ,2   ,2  ,2   ,2  ,2    ,2     ,2    ]; // number of modes per optics
+// nmod      = [2   ,2   ,2   ,2   ,2  ,2   ,2  ,2    ,2     ,2    ]; // number of modes per optics
 // fit       = [0   ,1   ,1   ,0   ,1  ,0   ,0  ,0    ,0     ,0    ];
 // rotv      = [[0.  ,0   ,0   ,0   ,0  ,0   ,0  ,0    ,0     ,0    ]];
 // fit       = fit*0+1;
 
-w = where(fit==0); if (nof(w)) nzer(w) = 2;
+w = where(fit==0); if (nof(w)) nmod(w) = 2;
 
-weight    = array(2./sqrt(nof(alt)),nof(nzer)); // mode weights (static aberrations)
+weight    = array(2./sqrt(nof(alt)),nof(nmod)); // mode weights (static aberrations)
 // weight   *= [0.3,0.3,1,1,1,0.3];
 fullfield = 30.; // full field in arcsec (on the side) - why 40 and not 30?
 teldiam   = 8.0; // telescope diameter
@@ -81,9 +82,9 @@ cobs      = 0.;  // central obstruction
 size      = 64;  // side dimension of small PSF arrays
 osampl    = 1;   // oversampling (1 or 2)
 // gridpad   = 2.;  // padding in arcsec to ovalidate sources
-gridpad   = 1.;  // padding in arcsec to ovalidate sources
+gridpad   = 1.;  // padding in arcsec to validate sources
 ps_slope  = -2.5;
-strehl_normalise = 4; // number of iterations for Strehl normalisation (recommended: 4)
+strehl_normalise = 0; // number of iterations for Strehl normalisation (recommended: 2)
 strehl_target = 0.41;
 zoomfactor = 3;
 display = 1;
@@ -102,7 +103,7 @@ if (rotv==[]) rotv = alt*0.;
 if ((initphase=="screens")&(nm_rmsv==[])) error,"nm_rmsv undefined while initphase=\"screens\"";
 if ((initphase=="coefs")&(weight==[])) error,"nm_rmsv undefined while initphase=\"screens\"";
 doa = nof(alt);
-if (nof(nzer)!=doa) error,"nzer and alt do not have the same dimension";
+if (nof(nmod)!=doa) error,"nmod and alt do not have the same dimension";
 if (nof(nm_rmsv)!=doa) error,"nm_rmsv and alt do not have the same dimension";
 if (nof(fit)!=doa) error,"fit and alt do not have the same dimension";
 if (dimsof(rotv)(2)!=doa) error,"rotv dimensions incompatible with alt dimension";

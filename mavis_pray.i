@@ -56,7 +56,7 @@ require,"mavis_pray_lib.i";
 require,"pray.i";
 
 func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
-	rseed=,verbose=,noinc=)
+rseed=,verbose=,noinc=,modes=)
 {
   extern pray_data;
   extern last_random_seed; // in case, to be able to repeat this random realisation
@@ -75,6 +75,7 @@ func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
   if (!flux)        flux = 1000.;
   if (!ngrid)       ngrid = 4;
   if (!osampl)      osampl = 1;
+  if (modes!=[])    usemodes = modes;
   // if (rseed==[])    rseed = 0.3; else
   last_random_seed = rseed;
   if (fit==[])      fit = array(1,nopt);
@@ -129,7 +130,7 @@ func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
   pray_data.pupd    = pupd;
   pray_data.size    = size;
   pray_data.centre  = centre;
-  pray_data.nzer    = &nzer;
+  pray_data.nmod    = &nmod;
   pray_data.alt     = &alt;
 
   // target positions
@@ -175,6 +176,7 @@ func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
   //**************************************************************************
   // Call pray, which does the minimisation (with calls to vmlmb + pray_error)
   //**************************************************************************
+
   if (debug) write,format="T=%.3fs -> calling %s\n",tac(),"pray";
   res = pray(*pray_data.images,pray_data,deltafoc,variance,object,disp=disp,verbose=verbose,\
     threshold=threshold,nbiter=maxiter);

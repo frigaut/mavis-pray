@@ -16,7 +16,7 @@ func script1(void)
     for (n=1;n<=nsamp;n++) {
       include,"mavis_pray_conf.i",1;
       w = where(fit==1);
-      nzer(w) = nmov(nmo);
+      nmod(w) = nmov(nmo);
       res=mavis_pray(,8,[0,-1.5,1.5],1000,0.,,disp=1,maxiter=nbiter, \
         rseed=rseedv(n),noinc=1);
       alls(,,n) = res;

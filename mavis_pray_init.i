@@ -83,39 +83,36 @@ func init_defs(&pd,tiptilt=)
   pd._n2 = _p2+2;
 
   // Init def, mode maps for all optics
-  def	= array(float,[3,pd.size,pd.size,(*pd.nzer)(sum)]);
-  nz12 = (*pd.nzer)(cum);
+  def	= array(float,[3,pd.size,pd.size,(*pd.nmod)(sum)]);
+  nz12 = (*pd.nmod)(cum);
   psize = pd.teldiam/pd.pupd;
   cpt = 0;
+
+  // extern focus;
+  // FIXME: there is only one array and several nopt? yes, because it is
+  // way oversized and the amplitude doesn't really matter?
+  // FIXED
+  pd.focus = &((sqrt(3.)*dist(pd.size,xc=pd.size/2.+0.5,yc=pd.size/2.+0.5)/(pd.pupd/2.))^2.);
 
   // create modes per optic
   for (k=1;k<=nopt;k++) {
     patchDiam = long(pd.pupd+2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*(abs(alt(k)))/psize);
     prepzernike,pd.size,patchDiam,pd.centre,pd.centre;
 
-    // extern focus;
-    // FIXME: there is only one array and several nopt? yes, because it is
-    // way oversized and the amplitude doesn't really matter?
-    // pd.focus = &zernike_ext(4); // true focus for extra focal image calculations
-    // FIXED
-    pd.focus = &((sqrt(3.)*dist(pd.size,xc=pd.size/2.+0.5,yc=pd.size/2.+0.5)/(pd.pupd/2.))^2.);
 
     if (usemodes=="zer") {
-      // we want zernike_ext but not too much (1 pixel), so we create our own mask
-      mask = smooth(zernike(1))>0.5;
-      for (i=4;i<=nzer(k)+3;i++) {
+      for (i=4;i<=nmod(k)+3;i++) {
         cpt ++;
-        def(,,cpt) = zernike_ext(i)*mask;
+        def(,,cpt) = zernike_ext(i);
       }
       if (tiptilt != []) {
        write,format="%s\n","Estimation of global TipTilt";
-        selz = _(4,2,3,4+indgen(nzer(k)+10));
+        selz = _(4,2,3,4+indgen(nmod(k)+10));
         // get rid of spherical
         //selz(10) = max(selz)+1;
-        for (i=4;i<=nzer(k)+3;i++) {
+        for (i=4;i<=nmod(k)+3;i++) {
           cpt ++;
-          //def(,,cpt) = zernike_ext(i)*mask;
-          def(,,cpt) = zernike_ext(selz(i-3))*mask;
+          def(,,cpt) = zernike_ext(selz(i-3));
         }
       }
 
@@ -125,13 +122,14 @@ func init_defs(&pd,tiptilt=)
       require,"yaokl.i";
       pup1 = [];
       // def *= 0;
-      thispatch = ((patchDiam+2)/2)*2;
+      klpatch = ((patchDiam+2)/2)*2;
       // computes KLs, remove Tip and Tilt like
-      kl = make_kl((*pd.nzer)(k)+2,thispatch,v,obas,pup1,oc=0.0,nr=128,verbose=0)(,,3:);
-      // normalise so that future coef optimisation will be about the same amplitude
-      kl = kl*(1./indgen((*pd.nzer)(k)+2)^0.8)(-,-,3:);
+      kl = make_kl((*pd.nmod)(k)+2,klpatch,v,obas,pup1,oc=0.0,nr=128,verbose=0)(,,3:);
+      kl *= 5;
+      // normalise so that future coef optimisation will be on coefs of about the same amplitude
+      kl = kl*(1./indgen((*pd.nmod)(k)+2)^0.8)(-,-,3:);
       //    kl = order_kls(kl,patchDiam,upto=20); // why is that not necessary?
-      // def is supposed to have zernikes in them, with def(,,1) = true focus
+      // def is supposed to have zernikes in them, with def(,,1) = true focus << not TRUE!
       def(,,2+nz12(k):nz12(k+1)) *= 0.;
       // stick in the KL, preserving zernike focus in position 1
       def(size/2-patchDiam/2:size/2+patchDiam/2+1, \
@@ -146,14 +144,15 @@ func init_defs(&pd,tiptilt=)
       sim.verbose = 0;
       pup1 = [];
       // def *= 0;
-      thispatch = ((patchDiam+2)/2)*2;
-      // thispatch = patchDiam; //write,thispatch;
+      dhpatch = ((patchDiam+2)/2)*2;
+      // dhpatch = patchDiam; //write,dhpatch;
       // computes KLs, remove Piston, Tip and Tilt
-      dh = make_diskharmonic(pd.size,thispatch,(*pd.nzer)(k)+6,cobs=0.,xc=size/2+0.5,yc=size/2+0.5)(,,4:(*pd.nzer)(k)+3);
+      dh = make_diskharmonic(pd.size,dhpatch,(*pd.nmod)(k)+6,cobs=0.,xc=size/2+0.5,yc=size/2+0.5)(,,4:(*pd.nmod)(k)+3);
+      dh *= 5;
       // focus is in position 2 now. astig in 1, put astig in 2
       dh(,,2) = dh(,,1); // focus will be added below in pos 1
       // normalise so that future coef optimisation will be about the same amplitude
-      dh = dh*(1./indgen((*pd.nzer)(k)+6)^0.8)(-,-,4:(*pd.nzer)(k)+3);
+      dh = dh*(1./indgen((*pd.nmod)(k)+6)^0.8)(-,-,4:(*pd.nmod)(k)+3);
       // def is supposed to have zernikes in them, with def(,,1) = true focus
       def(,,1+nz12(k):nz12(k+1)) *= 0.;
       // stick in the DH, preserving zernike focus in position 1
@@ -165,12 +164,12 @@ func init_defs(&pd,tiptilt=)
       if (k==nopt) def(,,1+nz12(k)) = *pd.focus;
       // if (k==1) def(,,1+nz12(k):nz12(k+1)) = def(::-1,::-1,1+nz12(k):nz12(k+1));
       // window,1; tv,def(,,nz12(k)+7); pltitle,swrite(format="%d",k); pause,1000;
-    } else error,"usemodes undefined";
+    } else error,"usemodes undefined or unknown";
 
   }
   pd.def = &def;
 
-  // Init dmgsXYposcub : will be needed by _get2dPhase
+  // Init dmgsXYposcub : will be needed by get_2d_phase_from_cube
   xref = indgen(pd._n)-(pd._n+1)/2.;
   yref = indgen(pd._n)-(pd._n+1)/2.;
 
@@ -191,11 +190,11 @@ func init_defs(&pd,tiptilt=)
   pd.dmgsyposcub = &dmgsyposcub;
 
   szdef = dimsof(def);
-  def_pup = array(float,[5,szdef(2),szdef(3),szdef(4),ntarget,nrot]);
+  _def_pup = array(float,[5,szdef(2),szdef(3),szdef(4),ntarget,nrot]);
   for (n=1;n<=nrot;n++) {
-    for (i=1;i<=ntarget;i++) def_pup(,,,i,n) = get_def_in_pupil_from_dir(pd,i,rotv=rotv(,n));
+    for (i=1;i<=ntarget;i++) _def_pup(,,,i,n) = get_def_in_pupil_from_dir(pd,i,rotv=rotv(,n));
   }
-  pd.def_pup = &def_pup;
+  pd._def_pup = &_def_pup;
   return 0;
 }
 
@@ -232,12 +231,12 @@ func init_perturbation(&pd,&coeff,&cmin,&cmax)
 {
   nopt = nof(*pd.alt);
   coeff = cmax = cmin = [];
-  nz12 = nzer(cum);
+  nz12 = nmod(cum);
   // var = 0.;
   for (no=1;no<=nopt;no++) {
-    c = weight(no)*(random(nzer(no))-0.5)/sqrt(indgen(nzer(no)));
+    c = weight(no)*(random(nmod(no))-0.5)/sqrt(indgen(nmod(no)));
     c(1) = 0.; // FIXME
-    cmx = 10*weight(no)/sqrt(indgen(nzer(no)))*fit(no);
+    cmx = 20*weight(no)/sqrt(indgen(nmod(no)))*fit(no);
     cmx(1) = 0.; // FIXME
     // if (no>=2) cmx *= 0;
     cmn = -cmx;
@@ -276,7 +275,7 @@ func init_perturbation(&pd,&coeff,&cmin,&cmax)
       offset_x = indgen(npt)*stride_x; offset_x -= avg(offset_x);
       offset_y = indgen(npt)*stride_y; offset_y -= avg(offset_y);
       phase = (*pd.mircube)(,,no);
-      write,format="phase rms: original= %f, ",phase(*)(rms);
+      if (debug>5) write,format="phase rms: original= %f, ",phase(*)(rms);
       phase_rms = array(0.,[2,npt,npt]);
       for (i=1;i<=npt;i++) {
         for (j=1;j<=npt;j++) {
@@ -299,7 +298,7 @@ func init_perturbation(&pd,&coeff,&cmin,&cmax)
       }
       phase = phase/avg(phase_rms);
       phase = phase*nm_rmsv(no)/lambda*2*pi;
-      write,format="adjusted after FoV average= %f\n",phase(*)(rms);
+      if (debug>5) write,format="adjusted after FoV average= %f\n",phase(*)(rms);
       (*pd.mircube)(,,no) = phase;
     }
   }
@@ -311,9 +310,9 @@ func init_perturbation(&pd,&coeff,&cmin,&cmax)
     if (initphase=="screens") {
       (*pd.truecube)(,,no) = (*pd.mircube)(,,no);
     } else {
-      zv = cpt+indgen(nzer(no));
+      zv = cpt+indgen(nmod(no));
       (*pd.truecube)(,,no) = (*pd.def)(,,zv)(,,+) * (*pd.truecoeffs)(zv)(+);
-      cpt += nzer(no);
+      cpt += nmod(no);
     }
     (*pd.truecube)(,,no) *= (*pd.maskcube)(,,no);
   }

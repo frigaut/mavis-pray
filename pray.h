@@ -7,17 +7,15 @@ struct pray_struct
 {
   pointer images;
   pointer mircube;
-  pointer maskcube;
   pointer truecube;
+  pointer maskcube;
   pointer truecoeffs;
-  pointer ftobject;
+  pointer def;
   pointer variance;
   pointer norm;
-  pointer nzer;
+  pointer nmod;
   pointer alt;
   pointer ipupil;
-  pointer def;
-  pointer def_pup;
   pointer dmgsxposcub;
   pointer dmgsyposcub;
   pointer deltafoc;
@@ -26,7 +24,7 @@ struct pray_struct
   pointer focus;
   pointer ampli_pup;
   pointer ampli_foc;
-  float   shiftFoc;
+  float   shift_foc;
   float   teldiam;
   float   cobs;
   long    pupd;
@@ -35,6 +33,8 @@ struct pray_struct
   long    _n;
   long    _n1;
   long    _n2;
+  pointer _def_pup;
+  pointer _ftobject;
 };
 
 struct sim_struct { long verbose; }

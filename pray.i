@@ -24,15 +24,16 @@
 require,"yao.i";
 require,"vops.i";
 require,"pray.h";
+require,"mavis_pray.h";
 // require,"optimpack-mod.i";
 
 sim = sim_struct(); // for call to make_diskharmonic()
 
 
-func psf_phase(phase,pup,size,&wf,&complexwf)
-/* DOCUMENT psf_phase
+func phase2psf(phase,pup,size,&wf,&complexwf)
+/* DOCUMENT phase2psf
  *
- * psf=psf_phase(phase,pup,size,wf)
+ * psf=phase2psf(phase,pup,size,wf)
  *
  * This routine returns the PSF estimated from a phase map
  *
@@ -45,7 +46,7 @@ func psf_phase(phase,pup,size,&wf,&complexwf)
  *                       x size)
  *                       the PSF
  *
- * SEE ALSO psf_phaseMode
+ * SEE ALSO phase2psfMode
  */
 {
   sdim = dimsof(pup)(2);
@@ -132,15 +133,15 @@ func pray_j_data(&gradient_psf,object=,ft_object=,image=,ft_image=,psf=, \
   }
 
   // estimation of (h*o-i)
-  HOminusI = 1./dim2*double(fft((ft_psf*ft_object),-1))-image;
+  ho_minus_i = 1./dim2*double(fft((ft_psf*ft_object),-1))-image;
 
   // gradient_psf estimation
-  gradient_psf=1./dim2*double(fft(conj(ft_object)*fft(HOminusI/variance,1),-1));
+  gradient_psf=1./dim2*double(fft(conj(ft_object)*fft(ho_minus_i/variance,1),-1));
 
 // In the least square method :
-// gradient_psf=(1./variance)*double(fft(conj(ft_object)*HOminusI,1));
+// gradient_psf=(1./variance)*double(fft(conj(ft_object)*ho_minus_i,1));
 
-  return 0.5 * sum((HOminusI)^2/variance);
+  return 0.5 * sum((ho_minus_i)^2/variance);
 }
 
 func grad_param_psf(grad_psf,&grad_phase,modes_array,mask,ampli_pup,ampli_foc,pupd)
@@ -156,7 +157,7 @@ func grad_param_psf(grad_psf,&grad_phase,modes_array,mask,ampli_pup,ampli_foc,pu
  * grad_phase   (output) : The gradient with respect to the Phase
  *                         (pupSize x pupSize)
  * mask         (input)  : The pupil
- * modes_array  (input)  : Transformation matrix from the Zernike coefficients
+ * modes_array  (input)  : Transformation matrix from the mode coefficients
  *                         space to the phase space (nbModes x pupsize^2)
  * ampli_pup    (input)  : The complex amplitude in the pupil plane
  *                         (pupSize x pupSize)
@@ -202,13 +203,13 @@ func compute_psfs(&pd,xfoc,coeff,&ampli_pup,&ampli_foc,rotv=,nodisp=,fromscreens
   tic,4;
   cpt = 0;
   for (i=1;i<=nopt;i++) {
-    zv = cpt+indgen((*pd.nzer)(i));
+    zv = cpt+indgen((*pd.nmod)(i));
     // ok so it's here we have to act if we want to use predefined phases instead of coeffs:
     if (fromscreens) (*pd.mircube)(,,i) = (*pd.truecube)(,,i); \
     else (*pd.mircube)(,,i) = (*pd.def)(,,zv)(,,+)*coeff(zv)(+); // from coeffs
     // else mircube has been prefill with correct phases at each optics/altitudes
     if (rotv(i)!=0) (*pd.mircube)(,,i) = rotate2((*pd.mircube)(,,i),rotv(i),xc=pd.size/2+0.5,yc=pd.size/2+0.5);
-    cpt += nzer(i);
+    cpt += nmod(i);
   }
 
   if ((allof(rotv==0))&(nodisp!=1)) {
@@ -244,7 +245,7 @@ func compute_psfs(&pd,xfoc,coeff,&ampli_pup,&ampli_foc,rotv=,nodisp=,fromscreens
     ishifts = int(xshifts); xshifts = xshifts - ishifts;
     jshifts = int(yshifts); yshifts = yshifts - jshifts;
 
-    err = _get2dPhase(pd.mircube,psnx,psny,nopt,&skip,&sphase,pd._n,pd._n,\
+    err = get_2d_phase_from_cube(pd.mircube,psnx,psny,nopt,&skip,&sphase,pd._n,pd._n,\
                       &ishifts,&float(xshifts),&jshifts,&float(yshifts));
 
     if (err != 0) { error,"Error in getPhase2dFromDms"; }
@@ -255,7 +256,7 @@ func compute_psfs(&pd,xfoc,coeff,&ampli_pup,&ampli_foc,rotv=,nodisp=,fromscreens
   ampli_pup = ampli_foc = array(complex,[3,size,size,ntarget]);
 
   for (i=1;i<=ntarget;i++) {
-    psfs(,,i) = psf_phase(bphase(pd._n1:pd._n2,pd._n1:pd._n2,i),\
+    psfs(,,i) = phase2psf(bphase(pd._n1:pd._n2,pd._n1:pd._n2,i),\
       (*pd.ipupil)(pd._n1:pd._n2,pd._n1:pd._n2),pd.size,amp1,amp2);
     ampli_pup(,,i) = amp1;
     ampli_foc(,,i) = amp2;
@@ -263,9 +264,9 @@ func compute_psfs(&pd,xfoc,coeff,&ampli_pup,&ampli_foc,rotv=,nodisp=,fromscreens
   pd.ampli_pup = &ampli_pup;
   pd.ampli_foc = &ampli_foc;
 
-  extern psffromcoef_time;
-  if (psffromcoef_time==[]) psffromcoef_time = 0.;
-  psffromcoef_time += tac(4);
+  extern compute_psf_time;
+  if (compute_psf_time==[]) compute_psf_time = 0.;
+  compute_psf_time += tac(4);
 
   return psfs;
 }
@@ -293,21 +294,24 @@ func get_def_in_pupil_from_dir(pd,ndir,rotv=)
   jshifts = int(yshifts); yshifts = yshifts - jshifts;
 
   mydef = (*pd.def)*0.;
-
   *pd.mircube *= 0.0f;
   cpt = 0;
   skip = array(0n,nopt);
-  for (i=1;i<=nopt;i++) {
-    for (j=1;j<=nzer(i);j++) {
+  for (no=1;no<=nopt;no++) {
+    for (j=1;j<=nmod(no);j++) {
       *pd.mircube *= 0.0f;
       bphase = array(float,[2,pd.size,pd.size]);
       sphase = array(float,pd._n,pd._n);
       cpt++;
-      (*pd.mircube)(,,i) = float((*pd.def)(,,cpt));
-      if (rotv(i)!=0) (*pd.mircube)(,,i) = rotate2((*pd.mircube)(,,i),rotv(i),xc=pd.size/2+0.5,yc=pd.size/2+0.5);
-      err = _get2dPhase(pd.mircube,psnx,psny,nopt,&skip,&sphase,pd._n,pd._n,\
-                 &ishifts,&float(xshifts),&jshifts,&float(yshifts));
-      if (err != 0) {error,"Error in getPhase2dFromDms";}
+      (*pd.mircube)(,,no) = float((*pd.def)(,,cpt));
+      if (rotv(no)!=0) (*pd.mircube)(,,no) = rotate2((*pd.mircube)(,,no),rotv(no),xc=pd.size/2+0.5,yc=pd.size/2+0.5);
+      // this function was taking forever as we were sending the whole mircube,
+      // in this version I am just sending the relevant plane as there is
+      // just one set anyway - well, it's not taking much less (25% less).
+      cubeslice = (*pd.mircube)(,,no)(,,-);
+      err = get_2d_phase_from_cube(&cubeslice,psnx,psny,1n,&[skip(no)],&sphase,pd._n,pd._n,\
+        &(ishifts(,no)),&float(xshifts(,no)),&(jshifts(,no)),&float(yshifts(,no)));
+      if (err != 0) error,"Error in getPhase2dFromDms";
       bphase(pd._n1:pd._n2,pd._n1:pd._n2) = float(sphase);
       mydef(,,cpt) = bphase;
     }
@@ -340,12 +344,12 @@ func pray_error(param,&gradient,extra=)
   local deltafoc;
 
   coeffs   = param;
-  nmodes   = nof(coeffs);
+  ncoeffs   = nof(coeffs);
 
   ntarget = dimsof(*extra.images)(4);
   // int crit_array
   crit_array = array(0.,nof(*extra.deltafoc)*ntarget);
-  gradientInterm = array(float,nmodes,nof(*extra.deltafoc)*ntarget);
+  gradient_interm = array(float,ncoeffs,nof(*extra.deltafoc)*ntarget);
 
   //----------------------------------------------------------------
   //Extra-Focal images (we can introduce as many images as we want)
@@ -359,20 +363,20 @@ func pray_error(param,&gradient,extra=)
       ftPsf = fft(psfs(,,i),1);
       // Estimation of the criterion associated with image #i
 
-      crit_array((n-1)*ntarget+i) = pray_j_data(gradientPsf,ft_object=*extra.ftobject,\
+      crit_array((n-1)*ntarget+i) = pray_j_data(gradientPsf,ft_object=*extra._ftobject,\
         image=ima(,,(n-1)*ntarget+i),ft_psf=ftPsf,variance=*extra.variance);
 
       ri = config(n).roti;
-      tmp = grad_param_psf(gradientPsf,grad_phaseOut,(*extra.def_pup)(,,,i,ri),*extra.ipupil,\
+      tmp = grad_param_psf(gradientPsf,grad_phaseOut,(*extra._def_pup)(,,,i,ri),*extra.ipupil,\
         (*extra.ampli_pup)(,,i),(*extra.ampli_foc)(,,i),extra.pupd);
 
-      gradientInterm(,(n-1)*ntarget+i) =  tmp;
+      gradient_interm(,(n-1)*ntarget+i) =  tmp;
     }
   }
   //----------------------------------------------------------------
 
 
-  gradient = gradientInterm(,sum);
+  gradient = gradient_interm(,sum);
 
   //gradient*=norm;
 
@@ -380,12 +384,12 @@ func pray_error(param,&gradient,extra=)
 }
 
 
-func pray(images,pd,deltafoc,variance,object,disp=,verbose=,\
-	threshold=,nbiter=,shiftFoc=)
+func pray(images,pd,deltafoc,variance,object,disp=,verbose=,threshold=,nbiter=,\
+  shift_foc=)
 /* DOCUMENT pray
  *
  *
- * This routine returns a set of Zernike coefficients that describes the
+ * This routine returns a set of mode coefficients that describes the
  * aberrations from a couple images (in focus and out of focus). It uses a
  * least square approach, penalized or not.
  *
@@ -395,7 +399,7 @@ func pray(images,pd,deltafoc,variance,object,disp=,verbose=,\
  * images     (input) : The couple of images (a 2D arrays) from which the
  *                      aberrant phase can be estimated
  * object     (input) : The initial object (a 2D array) which is imaged
- * guess      (input) : A guess on the restored Zernike coefficients (a vector
+ * guess      (input) : A guess on the restored mode coefficients (a vector
  *                      of nbModes components)
  * cobs       (input) : The size of central obscuration on the pupil
  * variance   (input) : The noise variance in the image
@@ -413,7 +417,7 @@ func pray(images,pd,deltafoc,variance,object,disp=,verbose=,\
   // Init verbose and disp flags
   if (!is_set(verbose)) verbose=0;
   if (!is_set(disp)) disp=0;
-  if (!shiftFoc) shiftFoc=0.;
+  if (!shift_foc) shift_foc=0.;
 
   // sizes init and check
   dims = dimsof(images);
@@ -454,7 +458,7 @@ func pray(images,pd,deltafoc,variance,object,disp=,verbose=,\
   }
 
   // ... testing guess and create one if nill
-  guess = array(0.0,nzer(sum));//BN (Benoit Neichel???)
+  guess = array(0.0,nmod(sum));//BN (Benoit Neichel???)
   write,format="%s\n","\033[31mUsing coeff = 0 as first guess\033[0m";
   // guess = truecoeff+random_n(dimsof(truecoeff))*truecoeff(rms);
   // write,format="%s\n","\033[31mUsing true coeff+noise as first guess\033[0m";
@@ -462,29 +466,31 @@ func pray(images,pd,deltafoc,variance,object,disp=,verbose=,\
   // param = guess*0. + 0.1;
   param = guess;
 
-  ftobject=fft(object,1);
+  _ftobject=fft(object,1);
 
   if (nof(threshold) == 0) {
     if (typeof(images) == "float") {
-      conv_threshold = 1e-7;
+      conv_threshold = 1e-12;
     } else conv_threshold = 1e-16;
   } else conv_threshold = threshold;
-  // conv_threshold=5e-3;
+  conv_threshold=1e-21;
+  cmax *=10;
+  cmin *=10;
 
   if (verbose) write,format="%s\n","Using the VMLM-B method for minimization.";
 
-  pd.ftobject   = &ftobject;
+  pd._ftobject   = &_ftobject;
   pd.variance   = &variance;
   pd.images     = &images;
   pd.norm       = &norm;
   // pd.regul      = regul;
   pd.deltafoc   = &deltafoc;
-  // pd.shiftFoc   = shiftFoc;
+  // pd.shift_foc   = shift_foc;
 
   // Some initializations for the minimization process
   iter = old_fout = old_gout = cont_out = 0;
   cont_flag = 1;
-  coeff_arr = array(float,(*pd.nzer)(sum));
+  coeff_arr = array(float,(*pd.nmod)(sum));
 
   if (verbose) {
     write, format="%s  %s\n%s  %s\n",
@@ -508,7 +514,7 @@ func pray(images,pd,deltafoc,variance,object,disp=,verbose=,\
     criterion_value =  pray_error(minim,grad_fin);
     write,criterion_value;
     if (verbose>1) {
-      write,format="Values of the Zernike Coeffs after %d iterations :",iter;
+      write,format="Values of the Mode Coeffs after %d iterations :",iter;
       write,minim;
     }
 
@@ -531,12 +537,12 @@ func myobserver(iters,evals,rejects,t,x,f,g,gpnorm,alpha,fg,extra=)
   currentiter = iters;
   if (!disp) return;
   if (extra==[]) return;
-  if ((iters>10) & ((iters%10)!=0)) return;
+  // if ((iters>10) & ((iters%10)!=0)) return;
   coeff = x;
   if (window_exists(4)) window,4;
   else window,4,wait=1,dpi=long(dpi_target_small);
   fma; limits,square=0;
-  plh,coeff;
+  plh,coeff; // FIXME fro dh and kl!!!!
   if (initphase=="coefs") {
 	  plh,(*extra.truecoeffs),color="red";
 	  plh,(*extra.truecoeffs)-coeff,color="blue";
