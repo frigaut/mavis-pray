@@ -118,7 +118,9 @@ func init_defs(&pd,tiptilt=)
           def(,,cpt) = zernike_ext(selz(i-3))*mask;
         }
       }
+
     } else if (usemodes=="kl") { // use KL
+
       if ((k==1)&verbose) write,format="%s\n","Using KL instead of Zernike";
       require,"yaokl.i";
       pup1 = [];
@@ -136,7 +138,9 @@ func init_defs(&pd,tiptilt=)
         size/2-patchDiam/2:size/2+patchDiam/2+1,2+nz12(k):nz12(k+1)) = kl(,,2:);
       if (k==1) def(,,1+nz12(k)) = *pd.focus;
       if (k==nopt) def(,,1+nz12(k)) = *pd.focus;
+
     } else if (usemodes=="dh") { // use DH
+
       if ((k==1)&verbose) write,format="%s\n","Using DH instead of Zernike";
       require,"yaodh.i";
       sim.verbose = 0;
@@ -250,13 +254,54 @@ func init_perturbation(&pd,&coeff,&cmin,&cmax)
   if (initphase=="screens") {
     for (no=1;no<=nopt;no++) {
       (*pd.mircube)(,,no) = make_phase_screens(*pd.ipupil,lambda, \
-        nm_rmsv(i),ps_slope,rseed=rseed+i*0.01,remove_tt=1,remove_foc=1);
+        nm_rmsv(no),ps_slope,remove_tt=1,remove_foc=1);
     }
     // in case of perturbation = screens, zero coefs:
     coeff *=0;
     *pd.truecoeffs *= 0;
     cmin = cmin * 1e3;
     cmax = cmax * 1e3;
+
+    // delta to normalise phase screens not only in the center-projected pupil,
+    // but over all patches (beams) on the various optics:
+    dim = dimsof(*pd.ipupil)(2);
+    for (no=1;no<=nopt;no++) {
+      // dmgsxposcub(coordinates,#optic,#target)
+      // excursion of one point over all targets for this optic:
+      excursion_x = (*pray_data.dmgsxposcub)(1,no,)(ptp);
+      excursion_y = (*pray_data.dmgsyposcub)(1,no,)(ptp);
+      npt = 5;
+      stride_x = excursion_x/(npt-1);
+      stride_y = excursion_y/(npt-1);
+      offset_x = indgen(npt)*stride_x; offset_x -= avg(offset_x);
+      offset_y = indgen(npt)*stride_y; offset_y -= avg(offset_y);
+      phase = (*pd.mircube)(,,no);
+      write,format="phase rms: original= %f, ",phase(*)(rms);
+      phase_rms = array(0.,[2,npt,npt]);
+      for (i=1;i<=npt;i++) {
+        for (j=1;j<=npt;j++) {
+          tempphase = phase;
+          npup = roll(*pd.ipupil,[offset_x(i),offset_y(j)]);
+          w = where(npup);
+          // tv,phase*npup;
+         	// remove_tt
+          tt = (indices(dim)-dim/2.-0.5);
+          tip = sum(tempphase(w)*tt(,,1)(w))/sum(tt(,,1)(w)^2);
+          tilt = sum(tempphase(w)*tt(,,2)(w))/sum(tt(,,2)(w)^2);
+          tempphase = tempphase-tip*tt(,,1)-tilt*tt(,,2);
+          // remove_foc
+          // focus = dist(dim,xc=dim/2+1,yc=dim/2+1)^2;
+          // foc = sum(tempphase(w)*focus(w))/sum(focus(w)^2);
+          // tempphase = tempphase-foc*focus;
+          // compute rms for this pupil position:
+          phase_rms(i,j) = tempphase(w)(rms);
+        }
+      }
+      phase = phase/avg(phase_rms);
+      phase = phase*nm_rmsv(no)/lambda*2*pi;
+      write,format="adjusted after FoV average= %f\n",phase(*)(rms);
+      (*pd.mircube)(,,no) = phase;
+    }
   }
 
   // compute true phase from truecoeffs for display comparison
@@ -298,8 +343,10 @@ func init_images(&pd,config,&object,&start_strehl)
       // images are centred, object is centred res is rol (so eclat(res) is centred)
       // images(,,i,n) = fft_convolve(object,eclat((*res(n))(,,i)));
       images(,,i,n) = roll((*res(n))(,,i))*flux;
-      if (deltafoc(n)==0) \
+      if (deltafoc(n)==0) {
         strehlv(i) = max(images(,,i,n)/sum(images(,,i,n)))/peak_airy;
+        strehlv_at_focus = strehlv;
+      }
     }
     if (deltafoc(n)==0) {
       rotvstr = strjoin(swrite(format="%.0f",rotv(,config(n).roti)),",");
@@ -327,5 +374,5 @@ func init_images(&pd,config,&object,&start_strehl)
 
   pd.images = &images;
 
-  return 0;
+  return strehlv_at_focus;
 }

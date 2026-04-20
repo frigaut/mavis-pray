@@ -277,16 +277,6 @@ func get_def_in_pupil_from_dir(pd,ndir,rotv=)
  */
 {
   tic,4;
-  // mircube     = *(pray_data.mircube);
-  // alt         = *(pray_data.alt);
-  // nzer        = *(pray_data.nzer);
-  // def         = *(pray_data.def);
-  // dmgsxposcub = *(pray_data.dmgsxposcub);
-  // dmgsyposcub = *(pray_data.dmgsyposcub);
-  // size        = pray_data.size;
-  // _n          = pray_data._n;
-  // _n1         = pray_data._n1;
-  // _n2         = pray_data._n2;
 
   nopt        = nof(*pd.alt);
 
@@ -504,7 +494,7 @@ func pray(images,pd,deltafoc,variance,object,disp=,verbose=,\
       "---------";
   }
 
-  tic;
+  // tic;
 
   minim=optm_vmlmb(pray_error,param,fout,gout, \
                  lower=cmin,upper=cmax,ftol=conv_threshold,  \

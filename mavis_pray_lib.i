@@ -81,12 +81,13 @@ func make_phase_screens(pup,lambda,nm_rms,slope,rseed=,remove_tt=,remove_foc=)
 {
 	dim = dimsof(pup)(2);
 	mtf = roll(clip(dist(dim),1,)^slope);
-	random_seed,(rseed?rseed:0.3);
+	// random_seed,(rseed?rseed:0.3);
 	pha = random(dimsof(mtf))*2*pi;
 	obj = mtf*exp(1i*pha);
 	phase = fft(obj,1).re;
 	// phase = phase/phase(*)(rms)*nm_rms/lambda*2*pi;
 	// remove piston and TT (experimental):
+	// error;
 	w = where(pup);
 	phase -= phase(w)(avg);
 	if (remove_tt) {
@@ -118,7 +119,7 @@ func test_make_phase_screens(nm_rms)
 	psf = roll(abs(fft(pup*exp(1i*phase),1))^2.);
 	psf = psf/sum(psf);
 	write,format="Returned phase rms [nm]: %.1f\n",phase(where(pup))(rms)*lambda/2/pi;
-	write,format="Strehl from image, i.e. max(ima)/max(airy):  %.3f\n",max(psf)/peak_airy;
+	write,format="Strehl@%.0fnm from image, i.e. max(ima)/max(airy):  %.3f\n",lambda,max(psf)/peak_airy;
 	var=phase(where(pup))(*)(rms)^2.;
 	write,format="Strehl expected from Marechal approximation: %.3f\n",exp(-var); tv,psf;
 	return phase;

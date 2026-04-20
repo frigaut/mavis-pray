@@ -1,9 +1,9 @@
 usemodes  = "zer";        // "dh" (recommended, works well), "kl" or "zer"
 geometry  = "hexagonal"; // "square" or "hexagonal"
-fovshape  = "round";     // "round" if desired if not will default to square
-// fovshape  = "square";     // "round" if desired if not will default to square
-initphase = "coefs";   // "coefs" or "screens"
-// initphase = "screens";   // "coefs" or "screens"
+// fovshape  = "round";     // "round" if desired if not will default to square
+fovshape  = "square";     // "round" if desired if not will default to square
+// initphase = "coefs";   // "coefs" or "screens"
+initphase = "screens";   // "coefs" or "screens"
 
 // parameters defined statically:
 alt     = [0.,6000,13500.]; //45000 seems to be the limit
@@ -54,12 +54,20 @@ rotv    = [[0.,0,0],[180,0,0]];
 //              [180,180,180,180,180,180,180,180,180,90,0,0,0,0]]; // rotation of optics, as many line as configs
 // fit       = fit*0+1;
 
-// alt       = [45.5,13.6,6   ,1.2 ,0.,-1.9,-4 ,-12.4,-23.9,-29.9]*1000; // altitude of optics, length nopt
-// nm_rmsv   = [10. ,30  ,30  ,30  ,30,47  ,9  ,11.0 ,6.9   ,48  ]*0.86;
-// nzer      = [50  ,100 ,100 ,50  ,100,50 ,50 ,50   ,50    ,50]; // number of modes per optics
-// fit       = [0   ,1   ,1   ,0   ,1  ,0  ,0  ,0    ,0     ,0];
-// rotv      = [[0. ,0   ,0   ,0   ,0  ,0  ,0  ,0    ,0     ,0],
-//              [180,180 ,180 ,180 ,180,180,180,90   ,0     ,0]];
+alt       = [45.5,13.6,6   ,1.2 ,0.,-1.9,-4 ,-12.4,-23.9,-29.9]*1000; // altitude of optics, length nopt
+nm_rmsv   = [10. ,30  ,30  ,30  ,30,47  ,9  ,11.0 ,6.9   ,48  ]*0.86;
+nzer      = [50  ,100 ,100 ,50  ,100,50 ,50 ,50   ,50    ,50]; // number of modes per optics
+fit       = [0   ,1   ,1   ,0   ,1  ,0  ,0  ,0    ,0     ,0];
+rotv      = [[0. ,0   ,0   ,0   ,0  ,0  ,0  ,0    ,0     ,0],
+             [180,180 ,180 ,180 ,180,180,180,90   ,0     ,0]];
+fit       = fit*0+1;
+
+// just for res=get_non_normalised_strehls()
+// alt       = [45.5,13.6,6   ,1.2 ,0. ,-1.9,-4 ,-12.4,-23.9 ,-29.9]*1000; // altitude of optics, length nopt
+// nm_rmsv   = [10. ,30  ,30  ,30  ,30 ,47  ,9  ,11.0 ,6.9   ,48   ];
+// nzer      = [2   ,2   ,2   ,2   ,2  ,2   ,2  ,2    ,2     ,2    ]; // number of modes per optics
+// fit       = [0   ,1   ,1   ,0   ,1  ,0   ,0  ,0    ,0     ,0    ];
+// rotv      = [[0.  ,0   ,0   ,0   ,0  ,0   ,0  ,0    ,0     ,0    ]];
 // fit       = fit*0+1;
 
 w = where(fit==0); if (nof(w)) nzer(w) = 2;
@@ -75,9 +83,11 @@ osampl    = 1;   // oversampling (1 or 2)
 // gridpad   = 2.;  // padding in arcsec to ovalidate sources
 gridpad   = 1.;  // padding in arcsec to ovalidate sources
 ps_slope  = -2.5;
-strehl_normalise = 1;
+strehl_normalise = 4; // number of iterations for Strehl normalisation (recommended: 4)
 strehl_target = 0.41;
 zoomfactor = 3;
+display = 1;
+debug = 1;
 
 // Graphics parameters
 dpi_target = 160; // dpi for the "large" graphic windows
