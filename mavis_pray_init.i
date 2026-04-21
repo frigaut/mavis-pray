@@ -10,8 +10,11 @@ func init_windows(win)
     }
   }
   nw = clip(nopt,4,8); nw = 8;
-  if (!window_exists(2)) plsplit,2,nw,win=2,style="nobox.gs",square=1,dpi=long(dpi_target*1.5),\
-    margin=-0.02,vp=[0.206+0.0115*(nw-3),0.656+0.0115*(nw-3),0.44,0.85];
+  // if (!window_exists(2)) plsplit,3,nw,win=2,style="nobox.gs",square=1,dpi=long(dpi_target*1.5),\
+  //   margin=-0.02,vp=[0.206+0.0115*(nw-3),0.656+0.0115*(nw-3),0.44,0.85];
+  if (!window_exists(2)) plsplit,3,nw,win=2,style="nobox.gs",square=1,dpi=long(dpi_target*1.5),\
+    margin=-0.02,vp=[0.206+0.0138*(nw-3),0.656+0.0138*(nw-3),0.44,0.85];
+
   return 0;
 }
 
@@ -96,7 +99,7 @@ func init_defs(&pd,tiptilt=)
 
   // create modes per optic
   for (k=1;k<=nopt;k++) {
-    patchDiam = long(pd.pupd+2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*(abs(alt(k)))/psize);
+    patchDiam = long(pd.pupd+2+2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*(abs(alt(k)))/psize);
     prepzernike,pd.size,patchDiam,pd.centre,pd.centre;
 
 
@@ -130,6 +133,9 @@ func init_defs(&pd,tiptilt=)
       kl *= 4;
       // normalise so that future coef optimisation will be on coefs of about the same amplitude
       kl = kl*(1./indgen((*pd.nmod)(k)+2)^0.8)(-,-,3:);
+      if ((k==1)&verbose) write,format="%s\n","Experimental: setting KL outskirt to large value";
+      w = where(kl(,,0)==0);
+      kl(*,)(w,) = 1e6;
       //    kl = order_kls(kl,patchDiam,upto=20); // why is that not necessary?
       // def is supposed to have zernikes in them, with def(,,1) = true focus << not TRUE!
       // def(,,2+nz12(k):nz12(k+1)) *= 0.; // this should not be necessary as we have just declared def
@@ -157,6 +163,9 @@ func init_defs(&pd,tiptilt=)
       dh *= 5;
       // focus is in position 2 now. astig in 1, put astig in 2
       dh(,,2) = dh(,,1); // focus has been added above in def pos 1
+      if ((k==1)&verbose) write,format="%s\n","Experimental: setting DH outskirt to large value";
+      w = where(dh(,,0)==0);
+      dh(*,)(w,) = 1e6;
       // normalise so that future coef optimisation will be about the same amplitude
       dh = dh*(1./indgen((*pd.nmod)(k)+6)^0.8)(-,-,4:(*pd.nmod)(k)+3);
       // def is supposed to have zernikes in them, with def(,,1) = true focus

@@ -3,7 +3,7 @@ geometry  = "square"; // "square" or "hexagonal"
 // fovshape  = "round";     // "round" if desired if not will default to square
 fovshape  = "square";     // "round" if desired if not will default to square
 initphase = "coefs";   // "coefs" or "screens"
-// initphase = "screens";   // "coefs" or "screens"
+initphase = "screens";   // "coefs" or "screens"
 
 // parameters defined statically:
 alt     = [0.,6000,13500.]; //45000 seems to be the limit
@@ -13,11 +13,11 @@ fit     = [1,1,1];
 rotv    = [[0.,0,0],[180,0,0]];
 // rotv = [[0.,0,0],[120,120,0],[240,240,0]];
 
-alt     = [20000.];
-nmod    = [140];
-nm_rmsv = [80]; // has to be defined if initphase = "screens"
-fit     = [1];
-rotv    = [[0.]];
+// alt     = [20000.];
+// nmod    = [140];
+// nm_rmsv = [80]; // has to be defined if initphase = "screens"
+// fit     = [1];
+// rotv    = [[0.]];
 
 // alt     = [0.,13500.]; //45000 seems to be the limit
 // nmod    = [150,150];

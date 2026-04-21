@@ -225,6 +225,9 @@ func compute_psfs(&pd,xfoc,coeff,&ampli_pup,&ampli_foc,rotv=,nodisp=,fromscreens
       plsys,isys++;
       pli,(*pd.mircube)(,,no) * mask;
       pltitle_vp,swrite(format="Phase(%d)",no),pos=-1;
+      plsys,isys++;
+      pli,((*pd.truecube)(,,no)-(*pd.mircube)(,,no)) * mask;
+      pltitle_vp,swrite(format="Difference(%d)",no),pos=-1;
     }
     pause,20;
   }
