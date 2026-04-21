@@ -6,14 +6,16 @@ func configuration_printout(void)
   write,format="%s","Extra focal distances: "; deltafoc_orig;
   write,format="%s","Optics conjug. altitude: "; alt;
   write,format="%s","Optics WFE [nm]: "; nm_rmsv;
-  write,format="Number of modes (%s) per optics: ",strcase(1,usemodes); nmod;
+  write,format="Number of modes (\033[31m%s\033[0m) per optics: ",strcase(1,usemodes); nmod;
   write,format="%s","Fit optics?: "; fit;
   perturb_from = (initphase=="screens"?"Power spectrum":"Mode coefficients");
   if (initphase=="screens") perturb_from += swrite(format=" (slope=%.3f)",ps_slope);
-  write,format="Init phase perturbation from %s\n",perturb_from;
+  write,format="Init phase perturbation from \033[31m%s\033[0m\n",perturb_from;
   for (i=1;i<=nrot;i++) { write,format="Optics rotation, config %d: ",i; rotv(,i); }
   write,format="Number of sources = %d across %.0f\" FoV, %d total, %s geometry\n",ngrid,fullfield,nof(xpos),geometry;
   write,format="source flux = %.1f, RON= %g\n",flux,ron;
+  if (imask_radius_scaling!=[]) \
+    write,format="Image mask radius = %.0f%%\n",imask_radius_scaling*100;
   write,format="%s\n","Current random seed stored in extern last_random_seed, use as rseed to repeat current";
   write,format="%s\n","--------------------------------------------------------------------";
 }
@@ -31,17 +33,18 @@ func strehl_normalisation(&pd,&coeff,config,rotv,peak_airy)
   ima = ima/ima(*,)(sum,)(-,-,); // normalisation
   strehlavg = avg(ima(*,)(max,)/peak_airy);
   // fact = sqrt(log(strehl_target)/log(strehlavg));
-  fact = (log(strehl_target)/log(strehlavg))^0.25;
+  fact = (log(strehl_target)/log(strehlavg))^0.5;
   if (debug) write,format="Current Strehl average = %.1f%%, scaling by %f\n",100*strehlavg,fact;
   *pd.mircube *= fact;
   *pd.truecube *= fact;
   *pd.truecoeffs *= fact;
-  coeff *= fact;
+  // *pd._def_pup *= fact; << this is definitely not necessary, as def not affected.
+  // coeff *= fact; << this was creating the issue I fought with.
+  // write,format="%s","\033[31mBEWARE, STREHL NORMALISATION IS BROKEN SOMEHOW (AFFECT RESULTS)\033[0m\n";
   return 0;
 }
 
-
-func build_bigim(data_set,xpos,ypos,variance)
+func build_bigim(data_set,xpos,ypos,variance,noeclat=)
 {
   if (zoomfactor==[]) zoomfactor=3.0;
   if (variance==[]) variance = 0.0;
@@ -60,7 +63,11 @@ func build_bigim(data_set,xpos,ypos,variance)
   bigim = array(0.,[2,max(xposp)+size,max(yposp)+size]);
 
   for (i=1;i<=nim;i++) {
-    bigim(xposp(i):xposp(i)+size-1,yposp(i):yposp(i)+size-1) += eclat(data_set(,,i));
+    if (noeclat) {
+      bigim(xposp(i):xposp(i)+size-1,yposp(i):yposp(i)+size-1) += data_set(,,i);
+    } else {
+      bigim(xposp(i):xposp(i)+size-1,yposp(i):yposp(i)+size-1) += eclat(data_set(,,i));
+    }
   }
   // crop the image
   // xy1 = 1+(size-stride)/2;
@@ -69,6 +76,21 @@ func build_bigim(data_set,xpos,ypos,variance)
   bigim += random_normal(dimsof(bigim))*sqrt(variance);
   return bigim;
 }
+
+func mask_images(&pd,imask_radius_scaling)
+{
+  if (imask_radius_scaling==[]) return 0;
+  // write,format="%s\n","-> Masking images to cut high frequencies";
+  for (i=1;i<=dimsof(*pd.images)(4);i++) {
+    for (j=1;j<=dimsof(*pd.images)(5);j++) {
+      radius = imask_radius_scaling*(pd.size/2.+abs(deltafoc(j))*pd.size/4.);
+      imask = dist(pd.size)<radius;
+      (*pd.images)(,,i,j) *= imask;
+    }
+  }
+}
+
+
 
 func make_phase_screens(pup,lambda,nm_rms,slope,rseed=,remove_tt=,remove_foc=)
 /* DOCUMENT make_phasescreens(dim,lambda,nm_rms,slope)

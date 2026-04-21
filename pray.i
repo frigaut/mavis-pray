@@ -473,9 +473,9 @@ func pray(images,pd,deltafoc,variance,object,disp=,verbose=,threshold=,nbiter=,\
       conv_threshold = 1e-12;
     } else conv_threshold = 1e-16;
   } else conv_threshold = threshold;
-  conv_threshold=1e-21;
-  cmax *=10;
-  cmin *=10;
+  // conv_threshold=1e-21;
+  // cmax *=10;
+  // cmin *=10;
 
   if (verbose) write,format="%s\n","Using the VMLM-B method for minimization.";
 

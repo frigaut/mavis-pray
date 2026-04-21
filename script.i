@@ -110,4 +110,29 @@ func script3(void)
   xytitles,"Power Spectrum slope","Strehl",[-0.015,0.];
 }
 
-status = script3();
+func script4(seed)
+{
+  if (!seed) seed=0.7;
+  mr = [0.05,0.1,0.15,0.2,0.25,.3,0.4,0.5,0.7,0.9];
+  st = mr*0.;
+  for (i=1;i<=nof(mr);i++) {
+    imask_radius_scaling=mr(i);
+    write,format="\nScript4, imask_radius_scaling=%.1f%%\n\n",imask_radius_scaling*100;
+    random_seed,seed;
+    res=mavis_pray(,4,[0.,-1.,1.],100000,0.,,disp=1,maxiter=80,modes="kl");
+    st(i) = res(1,2);
+    write,st;
+    window,1;
+    limits,square=0;
+    fma;
+    plg,st,mr;
+    plp,st,mr,symbol="o",size=0.5;
+    plmargin;
+    pltitle,"End Strehl (red) vs imask radius scaling";
+    xytitles,"imask radius scaling","Strehl",[-0.015,0.];
+    pause,2000;
+  }
+  return [mr,st];
+}
+
+// status = script4();

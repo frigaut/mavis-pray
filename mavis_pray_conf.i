@@ -7,17 +7,17 @@ initphase = "coefs";   // "coefs" or "screens"
 
 // parameters defined statically:
 alt     = [0.,6000,13500.]; //45000 seems to be the limit
-nmod    = [50,50,50];
+nmod    = [50,50,50]*2;
 nm_rmsv = [30,50,30]*1.2; // has to be defined if initphase = "screens"
 fit     = [1,1,1];
 rotv    = [[0.,0,0],[180,0,0]];
 // rotv = [[0.,0,0],[120,120,0],[240,240,0]];
 
-// alt     = [0.];
-// nmod    = [40];
-// nm_rmsv = [80]; // has to be defined if initphase = "screens"
-// fit     = [1];
-// rotv    = [[0.]];
+alt     = [20000.];
+nmod    = [140];
+nm_rmsv = [80]; // has to be defined if initphase = "screens"
+fit     = [1];
+rotv    = [[0.]];
 
 // alt     = [0.,13500.]; //45000 seems to be the limit
 // nmod    = [150,150];
@@ -25,13 +25,13 @@ rotv    = [[0.,0,0],[180,0,0]];
 // fit     = [1,1];
 // rotv    = [[0.,0],[180.,0]];
 
-alt       = [-25500,-6000,0,6000,13500.,20000]; // altitude of optics, length nopt
-nmod      = [50,50,100,100,100,50]; // number of modes per optics
-fit       = [0,0,1,1,1,0];
-nm_rmsv   = [15,15,30,30,30,15]*1.5; // has to be defined if initphase = "screens"
-rotv      = [[0.,0,0,0,0,0],\
-             [180,180,0,0,0,0]]; // rotation of optics, as many line as configs
-fit       = fit*0+1;
+// alt       = [-25500,-6000,0,6000,13500.,20000]; // altitude of optics, length nopt
+// nmod      = [50,50,100,100,100,50]; // number of modes per optics
+// fit       = [0,0,1,1,1,0];
+// nm_rmsv   = [15,15,30,30,30,15]*1.5; // has to be defined if initphase = "screens"
+// rotv      = [[0.,0,0,0,0,0],\
+//              [180,180,0,0,0,0]]; // rotation of optics, as many line as configs
+// fit       = fit*0+1;
 
 // alt       = [-25500,0,13500.,20000]; // altitude of optics, length nopt
 // nmod      = [150,150,150,150]; // number of modes per optics
@@ -84,7 +84,7 @@ osampl    = 1;   // oversampling (1 or 2)
 // gridpad   = 2.;  // padding in arcsec to ovalidate sources
 gridpad   = 1.;  // padding in arcsec to validate sources
 ps_slope  = -2.5;
-strehl_normalise = 0; // number of iterations for Strehl normalisation (recommended: 2)
+strehl_normalise = 4; // number of iterations for Strehl normalisation (recommended: 2)
 strehl_target = 0.41;
 zoomfactor = 3;
 display = 1;

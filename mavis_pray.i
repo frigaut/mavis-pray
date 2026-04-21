@@ -171,6 +171,10 @@ rseed=,verbose=,noinc=,modes=)
 
   if (debug) write,format="T=%.3fs -> initialising %s\n",tac(),"images";
   strehlv = init_images(pray_data,config,object,start_strehl);
+
+  if (debug&&(imask_radius_scaling!=[])) write,format="T=%.3fs -> %s\n",tac(),"Masking images to cut high frequencies";
+  status = mask_images(pray_data,imask_radius_scaling);
+
   if (stop_after_init_images) return strehlv;
 
   //**************************************************************************
