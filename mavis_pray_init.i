@@ -12,6 +12,8 @@ func init_windows(win)
   nw = clip(nopt,4,8); nw = 8;
   // if (!window_exists(2)) plsplit,3,nw,win=2,style="nobox.gs",square=1,dpi=long(dpi_target*1.5),\
   //   margin=-0.02,vp=[0.206+0.0115*(nw-3),0.656+0.0115*(nw-3),0.44,0.85];
+  if (!window_exists(1)) plsplit,1,3,win=1,square=1,dpi=200,margin=-0.015,style="nobox.gs",\
+    vp=[0.122,0.672,0.12,1.];
   if (!window_exists(2)) plsplit,3,nw,win=2,style="nobox.gs",square=1,dpi=long(dpi_target*1.5),\
     margin=-0.02,vp=[0.206+0.0138*(nw-3),0.656+0.0138*(nw-3),0.44,0.85];
 
@@ -376,18 +378,25 @@ func init_images(&pd,config,&object,&start_strehl)
     if (disp&&(n==1)) {
       // display for first defoc plane
       // disp_im = build_bigim(roll(images(,,,n)),*pd.xpos,*pd.ypos,variance);
-      disp_im = build_bigim(images(,,,n),*pd.xpos,*pd.ypos,variance,noeclat=1);
-      extern bigim2; bigim2 = disp_im;
+      tmp = images(,,,1)/flux;
+      // tmp = tmp/(tmp(sum,)(-,-,));
+      disp_im = build_bigim(tmp,*pd.xpos,*pd.ypos,variance/flux,noeclat=1);
+      pd.original_big_image = &disp_im;
       if (window_exists(n)) window,n;
       else window,n,wait=1,dpi=dpi_target;
-      fma; pli,disp_im; limits,square=1;
+      fma; plsys,3;
+      pli,disp_im; limits,square=1;
+      pth = pltitle_height_vp; pltitle_height_vp = pltitle_height_vp*0+10;
       pltitle,swrite(format="%.2f-focus images - data",deltafoc(n));
+      pltitle_height_vp = pth;
       pause,50;
     }
   }
+
   start_strehl = [avg(allstv),allstv(rms)]; // for all rotations and deltafoc=0
   write,format="\033[31mStrehl over FoV (all rotations): avg=%.1f%%\033[0m rms=%.1f%%\n", \
           100*avg(allstv),100*allstv(rms);
+
   images = images + random_normal(dimsof(images))*sqrt(variance);
 
   pd.images = &images;

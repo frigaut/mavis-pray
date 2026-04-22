@@ -6,6 +6,7 @@
 struct pray_struct
 {
   pointer images;
+  pointer original_big_image;
   pointer mircube;
   pointer truecube;
   pointer maskcube;

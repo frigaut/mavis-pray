@@ -110,7 +110,6 @@ func make_phase_screens(pup,lambda,nm_rms,slope,rseed=,remove_tt=,remove_foc=)
 	phase = fft(obj,1).re;
 	// phase = phase/phase(*)(rms)*nm_rms/lambda*2*pi;
 	// remove piston and TT (experimental):
-	// error;
 	w = where(pup);
 	phase -= phase(w)(avg);
 	if (remove_tt) {

@@ -447,8 +447,7 @@ func pray(images,pd,deltafoc,variance,object,disp=,verbose=,threshold=,nbiter=,\
         error;
       } else {
         if (min(variance) <= 0.) {
-          write,format="%s\n","variance must be strictly positive";
-          error;
+          error,swrite(format="%s\n","variance must be strictly positive");
         }
       }
     if (sz_variance == size^2) {
@@ -540,7 +539,7 @@ func myobserver(iters,evals,rejects,t,x,f,g,gpnorm,alpha,fg,extra=)
   currentiter = iters;
   if (!disp) return;
   if (extra==[]) return;
-  // if ((iters>10) & ((iters%10)!=0)) return;
+  if ((iters>10) & ((iters%10)!=0)) return;
   coeff = x;
   if (window_exists(4)) window,4;
   else window,4,wait=1,dpi=long(dpi_target_small);
@@ -552,11 +551,17 @@ func myobserver(iters,evals,rejects,t,x,f,g,gpnorm,alpha,fg,extra=)
   }
   // coeff(1) += firstdefoc;
   psfs = compute_psfs(extra,firstdefoc,coeff);
-  window,3,wait=1;
+  window,1,wait=1;
+  fma;
+  pth = pltitle_height_vp; pltitle_height_vp = pltitle_height_vp*0+10;
+  plsys,3; pli,*extra.original_big_image; limits,square=1;
+  pltitle,swrite(format="%.2f-focus images - data",firstdefoc);
   disp_im = build_bigim(psfs,*extra.xpos,*extra.ypos);
-  extern bigim3; bigim3 = disp_im;
-  pli,disp_im; limits,square=1;
+  plsys,2; pli,disp_im; limits,square=1;
   pltitle,swrite(format="%.2f-focus images - model - iter %d",firstdefoc,iters);
+  plsys,1; pli,*extra.original_big_image - disp_im; limits,square=1;
+  pltitle,swrite(format="%.2f-focus images - difference - iter %d",firstdefoc,iters);
+  pltitle_height_vp = pth;
   if (window_exists(9)) window,9;
   else window,9,wait=1,dpi=long(dpi_target_small);
   if (iters>1) {

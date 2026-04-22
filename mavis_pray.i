@@ -118,7 +118,7 @@ rseed=,verbose=,noinc=,modes=)
   pupd = long(size/2/osampl);
   pupd = pupd/2*2; // we want it even
   centre = size/2+0.5;
-  variance = (ron?ron^2:0.0001);   // noise variance
+  variance = (ron?ron^2:0.0001);   // noise variance (must be strickly positive in pray)
 
   // configuration printout
   if (debug) write,format="T=%.3fs -> configuration printout\n",tac();
