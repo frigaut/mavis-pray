@@ -99,8 +99,10 @@ func init_defs(&pd,tiptilt=)
 
   // create modes per optic
   for (k=1;k<=nopt;k++) {
-    patchDiam = long(pd.pupd+2+2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*(abs(alt(k)))/psize);
-    prepzernike,pd.size,patchDiam,pd.centre,pd.centre;
+    patch_diam = long(ceil(pd.pupd+2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*(abs(alt(k)))/psize));
+    patch_diam = long(ceil(patch_diam/2.)*2);
+
+    prepzernike,pd.size,patch_diam,pd.centre,pd.centre;
 
 
     if (usemodes=="zer") {
@@ -127,7 +129,8 @@ func init_defs(&pd,tiptilt=)
       // def *= 0;
       if (k==1) def(,,1+nz12(k)) = *pd.focus;
       if (k==nopt) def(,,1+nz12(k)) = *pd.focus;
-      klpatch = ((patchDiam+2)/2)*2;
+      klpatch = patch_diam+4;
+      // if (klpatch>pd.size) error,swrite(format="Patch size on optics %d too large, increase size or decrease altitude",k);
       // computes KLs, remove Tip and Tilt like
       kl = make_kl((*pd.nmod)(k)+2,klpatch,v,obas,pup1,oc=0.0,nr=128,verbose=0)(,,3:);
       kl *= 4;
@@ -136,12 +139,12 @@ func init_defs(&pd,tiptilt=)
       if ((k==1)&verbose) write,format="%s\n","Experimental: setting KL outskirt to large value";
       w = where(kl(,,0)==0);
       kl(*,)(w,) = 1e6;
-      //    kl = order_kls(kl,patchDiam,upto=20); // why is that not necessary?
-      // def is supposed to have zernikes in them, with def(,,1) = true focus << not TRUE!
-      // def(,,2+nz12(k):nz12(k+1)) *= 0.; // this should not be necessary as we have just declared def
-      // stick in the KL, preserving zernike focus in position 1
-      def(size/2-patchDiam/2:size/2+patchDiam/2+1, \
-        size/2-patchDiam/2:size/2+patchDiam/2+1,2+nz12(k):nz12(k+1)) = kl(,,2:);
+      //    kl = order_kls(kl,patch_diam,upto=20); // why is that not necessary?
+      if (klpatch<=size) {
+        def(size/2-klpatch/2+1:size/2+klpatch/2,size/2-klpatch/2+1:size/2+klpatch/2,2+nz12(k):nz12(k+1)) = kl(,,2:);
+      } else {
+        def(,,2+nz12(k):nz12(k+1)) = kl(klpatch/2-size/2+1:klpatch/2+size/2,klpatch/2-size/2+1:klpatch/2+size/2,2:);
+      }
 
     } else if (usemodes=="dh") { // use DH
 
@@ -152,8 +155,10 @@ func init_defs(&pd,tiptilt=)
       // def *= 0;
       if (k==1) def(,,1+nz12(k)) = *pd.focus;
       if (k==nopt) def(,,1+nz12(k)) = *pd.focus;
-      dhpatch = ((patchDiam+2)/2)*2;
-      // dhpatch = patchDiam; //write,dhpatch;
+      // dhpatch = ((patch_diam+4)/2)*2;
+      dhpatch = patch_diam+2;
+      // if (dhpatch>pd.size) error,swrite(format="Patch size on optics %d too large, increase size or decrease altitude",k);
+      // dhpatch = patch_diam; //write,dhpatch;
       // computes KLs, remove Piston, Tip and Tilt
       dh = make_diskharmonic(pd.size,dhpatch,(*pd.nmod)(k)+6,cobs=0.,xc=size/2+0.5,\
         yc=size/2+0.5)(,,4:(*pd.nmod)(k)+3);

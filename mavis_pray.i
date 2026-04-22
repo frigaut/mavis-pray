@@ -116,7 +116,8 @@ rseed=,verbose=,noinc=,modes=)
   nfoc = nof(deltafoc); // update
 
   pupd = long(size/2/osampl);
-  centre = size/2+0.5; // osampl?
+  pupd = pupd/2*2; // we want it even
+  centre = size/2+0.5;
   variance = (ron?ron^2:0.0001);   // noise variance
 
   // configuration printout
