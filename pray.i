@@ -553,7 +553,7 @@ func myobserver(iters,evals,rejects,t,x,f,g,gpnorm,alpha,fg,extra=)
   psfs = compute_psfs(extra,firstdefoc,coeff);
   window,1,wait=1;
   fma;
-  pth = pltitle_height_vp; pltitle_height_vp = pltitle_height_vp*0+10;
+  pth = pltitle_height_vp; pltitle_height_vp = pltitle_height_vp*0+9;
   plsys,3; pli,*extra.original_big_image; limits,square=1;
   pltitle,swrite(format="%.2f-focus images - data",firstdefoc);
   disp_im = build_bigim(psfs,*extra.xpos,*extra.ypos);

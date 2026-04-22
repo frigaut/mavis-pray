@@ -199,9 +199,9 @@ rseed=,verbose=,noinc=,modes=)
   *pray_data.truecube = origcube - *pray_data.mircube;
   psfs = compute_psfs(pray_data,0,res*0,amp1,amp2,nodisp=1,fromscreens=1);
   disp_im = build_bigim(psfs,xpos,ypos,variance*0);
-  window,1;
-  fma; pli,disp_im; limits,square=1;
-  pltitle,swrite(format="%s","Phase corrected image");
+  // window,1;
+  // fma; pli,disp_im; limits,square=1;
+  // pltitle,swrite(format="%s","Phase corrected image");
 
   strehlv = array(0.,ntarget);
   for (i=1;i<=ntarget;i++) {

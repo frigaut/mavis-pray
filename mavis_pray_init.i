@@ -374,23 +374,18 @@ func init_images(&pd,config,&object,&start_strehl)
         rotvstr,100*avg(strehlv),100*strehlv(rms);
       grow,allstv,strehlv;
     }
-
-    if (disp&&(n==1)) {
-      // display for first defoc plane
-      // disp_im = build_bigim(roll(images(,,,n)),*pd.xpos,*pd.ypos,variance);
-      tmp = images(,,,1)/flux;
-      // tmp = tmp/(tmp(sum,)(-,-,));
-      disp_im = build_bigim(tmp,*pd.xpos,*pd.ypos,variance/flux,noeclat=1);
-      pd.original_big_image = &disp_im;
-      if (window_exists(n)) window,n;
-      else window,n,wait=1,dpi=dpi_target;
-      fma; plsys,3;
-      pli,disp_im; limits,square=1;
-      pth = pltitle_height_vp; pltitle_height_vp = pltitle_height_vp*0+10;
-      pltitle,swrite(format="%.2f-focus images - data",deltafoc(n));
-      pltitle_height_vp = pth;
-      pause,50;
-    }
+  }
+  if (disp) {
+    // display for first defoc plane
+    // disp_im = build_bigim(roll(images(,,,n)),*pd.xpos,*pd.ypos,variance);
+    disp_im = build_bigim(images(,,,1),*pd.xpos,*pd.ypos,variance,noeclat=1)/flux;
+    pd.original_big_image = &disp_im;
+    window,1; fma; plsys,3;
+    pli,disp_im; limits,square=1;
+    pth = pltitle_height_vp; pltitle_height_vp = pltitle_height_vp*0+9;
+    pltitle,swrite(format="%.2f-focus images - data",deltafoc(1));
+    pltitle_height_vp = pth;
+    pause,50;
   }
 
   start_strehl = [avg(allstv),allstv(rms)]; // for all rotations and deltafoc=0

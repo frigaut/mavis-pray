@@ -70,9 +70,9 @@ func build_bigim(data_set,xpos,ypos,variance,noeclat=)
     }
   }
   // crop the image
-  // xy1 = 1+(size-stride)/2;
-  // xy2 = 1+long(size/2+(nlin-0.5)*stride);
-  // bigim = bigim(xy1:xy2,xy1:xy2);
+  xy1 = 1+(size-stride)/2;
+  xy2 = 1+long(size/2+(nlin-0.5)*stride);
+  bigim = bigim(xy1:xy2,xy1:xy2);
   bigim += random_normal(dimsof(bigim))*sqrt(variance);
   return bigim;
 }
