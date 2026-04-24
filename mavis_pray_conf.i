@@ -13,11 +13,17 @@ fit     = [1,1,1];
 rotv    = [[0.,0,0],[180,0,0]];
 // rotv = [[0.,0,0],[120,120,0],[240,240,0]];
 
-// alt     = [20000.];
-// nmod    = [140];
-// nm_rmsv = [80]; // has to be defined if initphase = "screens"
-// fit     = [1];
-// rotv    = [[0.]];
+alt     = [20000.];
+nmod    = [140];
+nm_rmsv = [80]; // has to be defined if initphase = "screens"
+fit     = [1];
+rotv    = [[0.]];
+
+alt     = [10000.,10000];
+nmod    = [100,100];
+nm_rmsv = [50,50]; // has to be defined if initphase = "screens"
+fit     = [1,0];
+rotv    = [[0.,0.]];
 
 // alt     = [0.,13500.]; //45000 seems to be the limit
 // nmod    = [150,150];
@@ -63,6 +69,18 @@ rotv    = [[0.,0,0],[180,0,0]];
 //              [180,180 ,180 ,180 ,180,180,180,90   ,0     ,0]];
 // fit       = fit*0+1;
 
+// rotv      = [[0. ,0   ,0   ,0   ,0  ,0  ,0  ,0    ,0     ,0],
+//             [120,120 ,120 ,120 ,120,120,120,60   ,0     ,0],
+//             [240,240 ,240 ,240 ,240,240,240,120   ,0     ,0]];
+
+alt        = [45.5,13.6,6   ,1.2 ,0. ,-1.9,-4 ,-12.4,-23.9,-29.9]*1000; // altitude of optics, length nopt
+nm_rmsv    = [10. ,30  ,30  ,30  ,30 ,47  ,9  ,11.0 ,6.9   ,48  ]*0.86;
+nm=50; nmod = [nm  ,100 ,100 ,nm  ,100,nm  ,nm ,nm   ,nm    ,nm  ]; // number of modes per optics
+fit        = [1   ,1   ,1   ,0   ,1  ,0   ,0  ,0    ,0     ,1   ];
+rotv       = [[0. ,0   ,0   ,0   ,0  ,0   ,0  ,0    ,0     ,0   ],
+             [180 ,180 ,180 ,180 ,180,180 ,180,90   ,0     ,0   ]];
+fit        = fit*0+1;
+
 // just for res=get_non_normalised_strehls()
 // alt       = [45.5,13.6,6   ,1.2 ,0. ,-1.9,-4 ,-12.4,-23.9 ,-29.9]*1000; // altitude of optics, length nopt
 // nm_rmsv   = [10. ,30  ,30  ,30  ,30 ,47  ,9  ,11.0 ,6.9   ,48   ];
@@ -73,27 +91,26 @@ rotv    = [[0.,0,0],[180,0,0]];
 
 w = where(fit==0); if (nof(w)) nmod(w) = 2;
 
-weight    = array(2./sqrt(nof(alt)),nof(nmod)); // mode weights (static aberrations)
-// weight   *= [0.3,0.3,1,1,1,0.3];
-fullfield = 30.; // full field in arcsec (on the side) - why 40 and not 30?
-teldiam   = 8.0; // telescope diameter
-lambda    = 550; // walevength [nm]
-cobs      = 0.;  // central obstruction
-size      = 64;  // side dimension of small PSF arrays
-osampl    = 1;   // oversampling (1 or 2)
-// gridpad   = 2.;  // padding in arcsec to ovalidate sources
-gridpad   = 1.;  // padding in arcsec to validate sources
-ps_slope  = -2.5;
+weight           = array(2./sqrt(nof(alt)),nof(nmod)); // mode weights (static aberrations)
+fullfield        = 30.; // full field in arcsec (on the side) - why 40 and not 30?
+teldiam          = 8.0; // telescope diameter
+lambda           = 550; // walevength [nm]
+cobs             = 0.;  // central obstruction
+size             = 64;  // side dimension of small PSF arrays
+osampl           = 1;   // oversampling (1 or 2)
+gridpad          = 1.;  // padding in arcsec to validate sources
+ps_slope         = -2.5;
+zoomfactor       = 3;
+display          = 1;
+debug            = 1;
+strehl_target    = 0.41;
 strehl_normalise = 4; // number of iterations for Strehl normalisation (recommended: 2)
-strehl_target = 0.41;
-zoomfactor = 3;
-display = 1;
-debug = 1;
+centre_images    = 0; // centre both original images and modelled ones.
 
 // Graphics parameters
-dpi_target = 160; // dpi for the "large" graphic windows
+dpi_target       = 160; // dpi for the "large" graphic windows
 dpi_target_small = 100; // dpi for the secondary graphic windows
-pltitle_height = 14;
+pltitle_height   = 14;
 
 
 // CHECKS

@@ -98,7 +98,7 @@ rseed=,verbose=,noinc=,modes=)
   // windows initialisation
   //***********************
   if (debug) write,format="T=%.3fs -> initialising %s\n",tac(),"windows";
-  status = init_windows([1,2,3,4,5]);
+  status = init_windows();
 
   //**********************
   // other initialisations
@@ -133,6 +133,9 @@ rseed=,verbose=,noinc=,modes=)
   pray_data.centre  = centre;
   pray_data.nmod    = &nmod;
   pray_data.alt     = &alt;
+
+  if (debug) write,format="T=%.3fs -> initialising %s\n",tac(),"image centring";
+  status = init_image_centring(pray_data);
 
   // target positions
   if (debug) write,format="T=%.3fs -> initialising %s\n",tac(),"target positions";

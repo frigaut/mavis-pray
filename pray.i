@@ -92,14 +92,14 @@ func pray_j_data(&gradient_psf,object=,ft_object=,image=,ft_image=,psf=, \
  *                         psf
  * object       (input)  : The object (a 2D array) for which we want the
  *                         criterion value (not needed if ft_object is passed)
- * ft_object    (input)  : The object Fourier transform (asumed centered) (can
+ * ft_object    (input)  : The object Fourier transform (asumed centred) (can
  *                         be passed instead of object to increase the speed
  *                         of the calculation)
  * image        (input)  : The image (a 2D array) for which we want the
  *                         criterion value
  * psf          (input)  : The psf (a 2D array) for which we want the
  *                         criterion value (not needed if ft_psf is passed)
- * ft_psf       (input)  : The psf Fourier transform (asumed centered) (can
+ * ft_psf       (input)  : The psf Fourier transform (asumed centred) (can
  *                         be passed instead of psf to increase the speed
  *                         of the calculation)
  * variance     (input)  : The noise variance. Can be a scalar or a 2D array
@@ -179,7 +179,7 @@ func grad_param_psf(grad_psf,&grad_phase,modes_array,mask,ampli_pup,ampli_foc,pu
 
   grad_phase = (-2./size2/count)*(ampli_pup*fft(grad_psf*conj(ampli_foc),1)).im;
 
-  // grad_phase is nil outside (1:pupd,1:pupd) so we need to recenter it for the product with the modes
+  // grad_phase is nil outside (1:pupd,1:pupd) so we need to recentre it for the product with the modes
   // note that modes are also nil outside the same area by definition
   grad_phase = roll(grad_phase,[size/2-pupd/2-2,size/2-pupd/2-2]);
 
@@ -216,7 +216,7 @@ func compute_psfs(&pd,xfoc,coeff,&ampli_pup,&ampli_foc,rotv=,nodisp=,fromscreens
     window,2; fma;
     pltitle_height_vp = 5;
     isys = 1;
-    for (no=1;no<=min([8,nopt]);no++) {
+    for (no=1;no<=min([13,nopt]);no++) {
       // mask = smooth((*pd.truecube)(,,i)!=0)>0.9;
       mask = (*pd.maskcube)(,,no);
       plsys,isys++;
@@ -261,6 +261,10 @@ func compute_psfs(&pd,xfoc,coeff,&ampli_pup,&ampli_foc,rotv=,nodisp=,fromscreens
   for (i=1;i<=ntarget;i++) {
     psfs(,,i) = phase2psf(bphase(pd._n1:pd._n2,pd._n1:pd._n2,i),\
       (*pd.ipupil)(pd._n1:pd._n2,pd._n1:pd._n2),pd.size,amp1,amp2);
+    if (centre_images) {
+      ima = eclat(psfs(,,i));
+      psfs(,,i) = eclat(centre_image(ima,pd));
+    }
     ampli_pup(,,i) = amp1;
     ampli_foc(,,i) = amp2;
   }
@@ -541,10 +545,12 @@ func myobserver(iters,evals,rejects,t,x,f,g,gpnorm,alpha,fg,extra=)
   if (extra==[]) return;
   if ((iters>10) & ((iters%10)!=0)) return;
   coeff = x;
-  if (window_exists(4)) window,4;
-  else window,4,wait=1,dpi=long(dpi_target_small);
+  if (window_exists(3)) window,3;
+  else window,3,wait=1,dpi=long(dpi_target_small);
   fma; limits,square=0;
-  plh,coeff; // FIXME fro dh and kl!!!!
+  plh,coeff;
+  xytitles,"Coefficient number (over all optics)","Coefficient value",[-0.015,0.];
+  pltitle,"Coefficients";
   if (initphase=="coefs") {
 	  plh,(*extra.truecoeffs),color="red";
 	  plh,(*extra.truecoeffs)-coeff,color="blue";
@@ -562,15 +568,15 @@ func myobserver(iters,evals,rejects,t,x,f,g,gpnorm,alpha,fg,extra=)
   plsys,1; pli,*extra.original_big_image - disp_im; limits,square=1;
   pltitle,swrite(format="%.2f-focus images - difference - iter %d",firstdefoc,iters);
   pltitle_height_vp = pth;
-  if (window_exists(9)) window,9;
-  else window,9,wait=1,dpi=long(dpi_target_small);
+  if (window_exists(4)) window,4;
+  else window,4,wait=1,dpi=long(dpi_target_small);
   if (iters>1) {
 	  fma;
 		plh,objfuncvec,indgen(iters);
 		// plh,gradvec,indgen(iters);
 	  logxy,0,1;
 		pltitle,"Objective function";
-		xytitles,"Iteration","Objective function",[-0.015,0.];
+		xytitles,"Iteration","Objective function",[-0.020,0.];
   }
   // if (iters>90) error;
 }

@@ -25,6 +25,7 @@ struct pray_struct
   pointer focus;
   pointer ampli_pup;
   pointer ampli_foc;
+  pointer xy4centring;
   float   shift_foc;
   float   teldiam;
   float   cobs;

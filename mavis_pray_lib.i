@@ -90,7 +90,14 @@ func mask_images(&pd,imask_radius_scaling)
   }
 }
 
-
+func centre_image(image,pd)
+{
+  return image;
+  cg = (image(,,-)*(*pd.xy4centring))(sum,sum,)/sum(image);
+  image = float(fftshift(image,-cg(1),-cg(2)));
+  // tv,image; pause,5;
+  return image;
+}
 
 func make_phase_screens(pup,lambda,nm_rms,slope,rseed=,remove_tt=,remove_foc=)
 /* DOCUMENT make_phasescreens(dim,lambda,nm_rms,slope)

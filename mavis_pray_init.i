@@ -1,21 +1,29 @@
-func init_windows(win)
+func init_windows(void)
 /* DOCUMENT
  * init windows
  */
 {
+  extern init_window_done;
+  win = [4,3]
+
   for (i=1;i<=nof(win);i++) {
-    if (window_exists(win(i))) {
-      window,win(i);
-      if (win(i)!=5) { limits; fma; }
-    }
+    if (!window_exists(win(i))) window,win(i),wait=1;
   }
-  nw = clip(nopt,4,8); nw = 8;
-  // if (!window_exists(2)) plsplit,3,nw,win=2,style="nobox.gs",square=1,dpi=long(dpi_target*1.5),\
-  //   margin=-0.02,vp=[0.206+0.0115*(nw-3),0.656+0.0115*(nw-3),0.44,0.85];
+
+  pause,100;
   if (!window_exists(1)) plsplit,1,3,win=1,square=1,dpi=200,margin=-0.015,style="nobox.gs",\
     vp=[0.122,0.672,0.12,1.];
-  if (!window_exists(2)) plsplit,3,nw,win=2,style="nobox.gs",square=1,dpi=long(dpi_target*1.5),\
-    margin=-0.02,vp=[0.206+0.0138*(nw-3),0.656+0.0138*(nw-3),0.44,0.85];
+
+  pause,100;
+  nw = clip(nopt,4,13); nw = 13;
+  if (!window_exists(2)) plsplit,3,nw,win=2,style="nobox.gs",square=1,dpi=190,margin=-0.02,vp=[0.277,0.656,0.14,0.95];
+  pause,100;
+
+  if (init_window_done) return 0;
+
+  system,"./layout_windows.sh";
+
+  init_window_done = 1;
 
   return 0;
 }
@@ -65,6 +73,10 @@ func init_target_positions(geometry,diam,ngrid,gridpad,&xpos,&ypos)
   return 0;
 }
 
+func init_image_centring(&pd)
+{
+  pd.xy4centring = &(indices(pd.size)-pd.size/2-0.5);
+}
 
 func init_defs(&pd,tiptilt=)
 /* DOCUMENT init_defs
@@ -104,7 +116,7 @@ func init_defs(&pd,tiptilt=)
     patch_diam = long(ceil(pd.pupd+2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*(abs(alt(k)))/psize));
     patch_diam = long(ceil(patch_diam/2.)*2);
 
-    prepzernike,pd.size,patch_diam,pd.centre,pd.centre;
+    prepzernike,pd.size,patch_diam+2,pd.centre,pd.centre;
 
 
     if (usemodes=="zer") {
@@ -134,18 +146,27 @@ func init_defs(&pd,tiptilt=)
       klpatch = patch_diam+4;
       // if (klpatch>pd.size) error,swrite(format="Patch size on optics %d too large, increase size or decrease altitude",k);
       // computes KLs, remove Tip and Tilt like
-      kl = make_kl((*pd.nmod)(k)+2,klpatch,v,obas,pup1,oc=0.0,nr=128,verbose=0)(,,3:);
+      kl = make_kl((*pd.nmod)(k)+6,klpatch,v,obas,pup1,oc=0.0,nr=128,verbose=0);
+      kl = order_kls(kl,patch_diam,upto=20); // otherwise focus might end up at random index
+      // at this point we have tip,tilt,focus and 2 astig as for zernikes.
+      // scaling to get approximate strehl values qw the zernike when we use "coeff"
+      // to generate perturbations:
       kl *= 4;
+      // normalisation, we use zernike radial order as these are similar
+      radeg = array(0.,dimsof(kl)(0));
+      for (i=1;i<=dimsof(kl)(0);i++) radeg(i) = zernumero(i)(1);
+      kl = kl(,,4:); // remove TT and focus
+      radeg = radeg(4:);
       // normalise so that future coef optimisation will be on coefs of about the same amplitude
-      kl = kl*(1./indgen((*pd.nmod)(k)+2)^0.8)(-,-,3:);
+      // kl = kl*(1./indgen(dimsof(kl)(0))^0.8)(-,-,);
+      kl = kl*(1./radeg^0.5)(-,-,);
       if ((k==1)&verbose) write,format="%s\n","Experimental: setting KL outskirt to large value";
       w = where(kl(,,0)==0);
       kl(*,)(w,) = 1e6;
-      //    kl = order_kls(kl,patch_diam,upto=20); // why is that not necessary?
       if (klpatch<=size) {
-        def(size/2-klpatch/2+1:size/2+klpatch/2,size/2-klpatch/2+1:size/2+klpatch/2,2+nz12(k):nz12(k+1)) = kl(,,2:);
+        def(size/2-klpatch/2+1:size/2+klpatch/2,size/2-klpatch/2+1:size/2+klpatch/2,2+nz12(k):nz12(k+1)) = kl(,,1:(*pd.nmod)(k)-1);
       } else {
-        def(,,2+nz12(k):nz12(k+1)) = kl(klpatch/2-size/2+1:klpatch/2+size/2,klpatch/2-size/2+1:klpatch/2+size/2,2:);
+        def(,,2+nz12(k):nz12(k+1)) = kl(klpatch/2-size/2+1:klpatch/2+size/2,klpatch/2-size/2+1:klpatch/2+size/2,1:(*pd.nmod)(k)-1);
       }
 
     } else if (usemodes=="dh") { // use DH
@@ -163,13 +184,18 @@ func init_defs(&pd,tiptilt=)
       // dhpatch = patch_diam; //write,dhpatch;
       // computes KLs, remove Piston, Tip and Tilt
       dh = make_diskharmonic(pd.size,dhpatch,(*pd.nmod)(k)+6,cobs=0.,xc=size/2+0.5,\
-        yc=size/2+0.5)(,,4:(*pd.nmod)(k)+3);
-      // write,"\n\nFIXME added TT to def!!!!!\n\n (init_defs, line 154)\n\n";
+        yc=size/2+0.5); // start with first quadratic (1:piston, 2:tip, 3:tilt)
+      // get rid of DH focus:
+      tmp = dh(,,5); // focus
+      dh(,,5) = dh(,,4);
+      dh(,,4) = tmp; // we just swapped focus and astig
+      dh = dh(,,4:)(,,1:(*pd.nmod)(k));
+      // write,"\033[31mFIXME added TT to def!!!!! (init_defs, line 154)\033[0m";
       // dh = make_diskharmonic(pd.size,dhpatch,(*pd.nmod)(k)+6,cobs=0.,xc=size/2+0.5,\
-        // yc=size/2+0.5)(,,2:(*pd.nmod)(k)+1);
+      //   yc=size/2+0.5)(,,2:(*pd.nmod)(k)+1);
       dh *= 5;
       // focus is in position 2 now. astig in 1, put astig in 2
-      dh(,,2) = dh(,,1); // focus has been added above in def pos 1
+      // dh(,,2) = dh(,,1); // focus has been added above in def pos 1
       if ((k==1)&verbose) write,format="%s\n","Experimental: setting DH outskirt to large value";
       w = where(dh(,,0)==0);
       dh(*,)(w,) = 1e6;
@@ -198,7 +224,7 @@ func init_defs(&pd,tiptilt=)
   for (n=1;n<=ntarget;n++) {
     // loop on pseudo-DMs
     for (no=1;no<=nopt;no++) {
-      // offsets of the center of beam on DM NO
+      // offsets of the centre of beam on DM NO
       xoff = (*pd.xpos)(n)*4.848e-6*(*pd.alt)(no)/psize;
       yoff = (*pd.ypos)(n)*4.848e-6*(*pd.alt)(no)/psize;
       dmgsxposcub(,no,n) = xref + xoff;
@@ -281,7 +307,7 @@ func init_perturbation(&pd,&coeff,&cmin,&cmax)
     cmin = cmin * 1e3;
     cmax = cmax * 1e3;
 
-    // delta to normalise phase screens not only in the center-projected pupil,
+    // delta to normalise phase screens not only in the centre-projected pupil,
     // but over all patches (beams) on the various optics:
     dim = dimsof(*pd.ipupil)(2);
     for (no=1;no<=nopt;no++) {
@@ -362,7 +388,6 @@ func init_images(&pd,config,&object,&start_strehl)
       // images are centred, object is centred res is rol (so eclat(res) is centred)
       // images(,,i,n) = fft_convolve(object,eclat((*res(n))(,,i)));
       images(,,i,n) = eclat((*res(n))(,,i))*flux;
-      // images(,,i,n) = (*res(n)(,,i))*flux;
       if (deltafoc(n)==0) {
         strehlv(i) = max(images(,,i,n)/sum(images(,,i,n)))/peak_airy;
         strehlv_at_focus = strehlv;
