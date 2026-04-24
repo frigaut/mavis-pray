@@ -120,16 +120,16 @@ func init_defs(&pd,tiptilt=)
 
 
     if (usemodes=="zer") {
-      for (i=4;i<=nmod(k)+3;i++) {
+      for (i=4;i<=(*pd.nmod)(k)+3;i++) {
         cpt ++;
         def(,,cpt) = zernike_ext(i);
       }
       if (tiptilt != []) {
        write,format="%s\n","Estimation of global TipTilt";
-        selz = _(4,2,3,4+indgen(nmod(k)+10));
+        selz = _(4,2,3,4+indgen((*pd.nmod)(k)+10));
         // get rid of spherical
         //selz(10) = max(selz)+1;
-        for (i=4;i<=nmod(k)+3;i++) {
+        for (i=4;i<=(*pd.nmod)(k)+3;i++) {
           cpt ++;
           def(,,cpt) = zernike_ext(selz(i-3));
         }
@@ -360,7 +360,7 @@ func init_perturbation(&pd,&coeff,&cmin,&cmax)
       (*pd.truecube)(,,no) = (*pd.def)(,,zv)(,,+) * (*pd.truecoeffs)(zv)(+);
       cpt += nmod(no);
     }
-    (*pd.truecube)(,,no) *= (*pd.maskcube)(,,no);
+    // (*pd.truecube)(,,no) *= (*pd.maskcube)(,,no);
   }
   return 0;
 }

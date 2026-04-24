@@ -99,6 +99,43 @@ func centre_image(image,pd)
   return image;
 }
 
+func get_high_order_residuals(pd)
+{
+  nopt    = nof(*pd.alt);
+  nz12 = (*pd.nmod)(cum);
+  nz1 = (nz12+1)(1:-1);
+  nz2 = nz12(2:);
+
+  for (no=1;no<=nopt;no++) {
+    mask = (*pd.maskcube)(,,no);
+    mask = (*pd.def)(,,nz1(no)+1) < 100;
+    wpatch = where(mask);
+    d = (*pd.def)(,,nz1(no):nz2(no))(*,)(wpatch,);
+    d = d(,2:); // first slot is zero
+    // add TT and focus that are missing from defs:
+    ttf = [zernike_ext(2),zernike_ext(3),zernike_ext(4)];
+    ttf = ttf(*,)(wpatch,);
+    d = _(ttf,d);
+    ddt = d(+,)*d(+,);
+    ddtm1 = LUsolve(ddt);
+    dm1 = ddtm1(,+)*d(,+);
+    phase = (*pd.truecube)(,,no)(*)(wpatch);
+    proj = dm1(,+)*phase(+);
+    rec = d(,+)*proj(+);
+    rec2d = array(0.0f,[2,pd.size,pd.size]);
+    rec2d(wpatch) = rec;
+    window,1; fma;
+    plsys,3; pli,(*pd.truecube)(,,no)*mask; pltitle_vp,"turbulent";
+    plsys,2; pli,rec2d; pltitle_vp,"fitted";
+    plsys,1; pli,((*pd.truecube)(,,no)-rec2d)*mask; pltitle_vp,"Residuals";
+    pause,500;
+    // s = SVdec(d,u,vt);
+    // s;
+    // if (hitReturn()=="s") error;
+    // (*pd.truecube)(,,no) = rec2d;
+  }
+}
+
 func make_phase_screens(pup,lambda,nm_rms,slope,rseed=,remove_tt=,remove_foc=)
 /* DOCUMENT make_phasescreens(dim,lambda,nm_rms,slope)
  * pup: pupil array (needed for computation of rms and TT removal)

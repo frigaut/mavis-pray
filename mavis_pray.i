@@ -162,6 +162,9 @@ rseed=,verbose=,noinc=,modes=)
   if (debug) write,format="T=%.3fs -> initialising %s\n",tac(),"perturbations";
   status = init_perturbation(pray_data,coeff,cmin,cmax);
 
+  if (debug) write,format="T=%.3fs -> Getting high order residuals\n",tac();
+  status = get_high_order_residuals(pray_data);
+
   // ok first let's do an estimate of Strehl for the deltafoc=0 and scale the
   // phase screens or coefficients from there:
   // (<- FIXME, doesn't work for coeff)
