@@ -107,9 +107,9 @@ func get_high_order_residuals(pd)
   nz2 = nz12(2:);
 
   for (no=1;no<=nopt;no++) {
-    mask = (*pd.maskcube)(,,no);
-    mask = (*pd.def)(,,nz1(no)+1) < 100;
-    wpatch = where(mask);
+    mask1 = (*pd.maskcube)(,,no);
+    mask2 = (*pd.def)(,,nz1(no)+1) < 100;
+    wpatch = where(mask2);
     d = (*pd.def)(,,nz1(no):nz2(no))(*,)(wpatch,);
     d = d(,2:); // first slot is zero
     // add TT and focus that are missing from defs:
@@ -125,15 +125,21 @@ func get_high_order_residuals(pd)
     rec2d = array(0.0f,[2,pd.size,pd.size]);
     rec2d(wpatch) = rec;
     window,1; fma;
-    plsys,3; pli,(*pd.truecube)(,,no)*mask; pltitle_vp,"turbulent";
-    plsys,2; pli,rec2d; pltitle_vp,"fitted";
-    plsys,1; pli,((*pd.truecube)(,,no)-rec2d)*mask; pltitle_vp,"Residuals";
-    pause,500;
-    // s = SVdec(d,u,vt);
-    // s;
+    plsys,3; pli,(*pd.truecube)(,,no)*mask1; pltitle_vp,"turbulent";
+    plsys,2; pli,rec2d*mask1; pltitle_vp,"fitted";
+    plsys,1; pli,((*pd.truecube)(,,no)-rec2d)*mask1; pltitle_vp,"Residuals";
     // if (hitReturn()=="s") error;
+    pause,500;
     // (*pd.truecube)(,,no) = rec2d;
   }
+}
+
+func fix_diskharmonic(&dh)
+{
+  w = where(dh(1,1,)==0);
+  pup = (abs(dh)(,,w)(,,sum)>0);
+  dh = dh*pup(,,-);
+  return pup;
 }
 
 func make_phase_screens(pup,lambda,nm_rms,slope,rseed=,remove_tt=,remove_foc=)

@@ -102,6 +102,8 @@ func init_defs(&pd,tiptilt=)
   // Init def, mode maps for all optics
   def	= array(float,[3,pd.size,pd.size,(*pd.nmod)(sum)]);
   nz12 = (*pd.nmod)(cum);
+  nz1 = (nz12+1)(1:-1);
+  nz2 = nz12(2:);
   psize = pd.teldiam/pd.pupd;
   cpt = 0;
 
@@ -141,8 +143,8 @@ func init_defs(&pd,tiptilt=)
       require,"yaokl.i";
       pup1 = [];
       // def *= 0;
-      if (k==1) def(,,1+nz12(k)) = *pd.focus;
-      if (k==nopt) def(,,1+nz12(k)) = *pd.focus;
+      if (k==1) def(,,nz1(k)) = *pd.focus;
+      if (k==nopt) def(,,nz1(k)) = *pd.focus;
       klpatch = patch_diam+4;
       // if (klpatch>pd.size) error,swrite(format="Patch size on optics %d too large, increase size or decrease altitude",k);
       // computes KLs, remove Tip and Tilt like
@@ -164,9 +166,9 @@ func init_defs(&pd,tiptilt=)
       w = where(kl(,,0)==0);
       kl(*,)(w,) = 1e6;
       if (klpatch<=size) {
-        def(size/2-klpatch/2+1:size/2+klpatch/2,size/2-klpatch/2+1:size/2+klpatch/2,2+nz12(k):nz12(k+1)) = kl(,,1:(*pd.nmod)(k)-1);
+        def(size/2-klpatch/2+1:size/2+klpatch/2,size/2-klpatch/2+1:size/2+klpatch/2,nz1(k)+1:nz2(k)) = kl(,,1:(*pd.nmod)(k)-1);
       } else {
-        def(,,2+nz12(k):nz12(k+1)) = kl(klpatch/2-size/2+1:klpatch/2+size/2,klpatch/2-size/2+1:klpatch/2+size/2,1:(*pd.nmod)(k)-1);
+        def(,,nz1(k)+1:nz2(k)) = kl(klpatch/2-size/2+1:klpatch/2+size/2,klpatch/2-size/2+1:klpatch/2+size/2,1:(*pd.nmod)(k)-1);
       }
 
     } else if (usemodes=="dh") { // use DH
@@ -176,8 +178,8 @@ func init_defs(&pd,tiptilt=)
       sim.verbose = 0;
       pup1 = [];
       // def *= 0;
-      if (k==1) def(,,1+nz12(k)) = *pd.focus;
-      if (k==nopt) def(,,1+nz12(k)) = *pd.focus;
+      if (k==1) def(,,nz1(k)) = *pd.focus;
+      if (k==nopt) def(,,nz1(k)) = *pd.focus;
       // dhpatch = ((patch_diam+4)/2)*2;
       dhpatch = patch_diam+2;
       // if (dhpatch>pd.size) error,swrite(format="Patch size on optics %d too large, increase size or decrease altitude",k);
@@ -185,11 +187,13 @@ func init_defs(&pd,tiptilt=)
       // computes KLs, remove Piston, Tip and Tilt
       dh = make_diskharmonic(pd.size,dhpatch,(*pd.nmod)(k)+6,cobs=0.,xc=size/2+0.5,\
         yc=size/2+0.5); // start with first quadratic (1:piston, 2:tip, 3:tilt)
+      pup = fix_diskharmonic(dh);
       // get rid of DH focus:
       tmp = dh(,,5); // focus
       dh(,,5) = dh(,,4);
       dh(,,4) = tmp; // we just swapped focus and astig
-      dh = dh(,,4:)(,,1:(*pd.nmod)(k));
+      // dh = dh(,,4:)(,,1:(*pd.nmod)(k));
+      dh = dh(,,3:-1)(,,1:(*pd.nmod)(k));
       // write,"\033[31mFIXME added TT to def!!!!! (init_defs, line 154)\033[0m";
       // dh = make_diskharmonic(pd.size,dhpatch,(*pd.nmod)(k)+6,cobs=0.,xc=size/2+0.5,\
       //   yc=size/2+0.5)(,,2:(*pd.nmod)(k)+1);
@@ -197,17 +201,17 @@ func init_defs(&pd,tiptilt=)
       // focus is in position 2 now. astig in 1, put astig in 2
       // dh(,,2) = dh(,,1); // focus has been added above in def pos 1
       if ((k==1)&verbose) write,format="%s\n","Experimental: setting DH outskirt to large value";
-      w = where(dh(,,0)==0);
+      w = where(pup==0);
       dh(*,)(w,) = 1e6;
       // normalise so that future coef optimisation will be about the same amplitude
       dh = dh*(1./indgen((*pd.nmod)(k)+6)^0.8)(-,-,4:(*pd.nmod)(k)+3);
       // def is supposed to have zernikes in them, with def(,,1) = true focus
       // def(,,1+nz12(k):nz12(k+1)) *= 0.;
       // stick in the DH, preserving zernike focus in position 1
-      def(,,2+nz12(k):nz12(k+1)) = dh(,,2:);
+      def(,,nz1(k)+1:nz2(k)) = dh(,,2:);
       // if (k==2) error;
       // def = def(,,_(3,1,2,indgen(4:cpt)));}
-      lpup = (def(,,1+nz12(k)) != 0);
+      // lpup = (def(,,nz1(k)) != 0);
       // if (k==1) def(,,1+nz12(k):nz12(k+1)) = def(::-1,::-1,1+nz12(k):nz12(k+1));
       // window,1; tv,def(,,nz12(k)+7); pltitle,swrite(format="%d",k); pause,1000;
     } else error,"usemodes undefined or unknown";
@@ -283,7 +287,7 @@ func init_perturbation(&pd,&coeff,&cmin,&cmax)
     c = weight(no)*(random(nmod(no))-0.5)/sqrt(indgen(nmod(no)));
     c(1) = 0.; // FIXME
     cmx = 20*weight(no)/sqrt(indgen(nmod(no)))*fit(no);
-    cmx(1) = 0.; // FIXME
+    cmx(1:2) = 0.; // FIXME
     // if (no>=2) cmx *= 0;
     cmn = -cmx;
     grow,coeff,c;
