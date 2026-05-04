@@ -1,6 +1,6 @@
 func configuration_printout(void)
 {
-  write,format="%s\n","--------------------------------------------------------------------";
+  write,format="\n%s\n","--------------------------------------------------------------------";
   write,format="%s\n","Pray for MAVIS (mavis_pray and pray) - System Configuration";
   write,format="Number of optics: %d, Number of extra-focal pos.: %d, number of rotation: %d\n",nopt,nof(deltafoc),dimsof(rotv)(0);
   write,format="%s","Extra focal distances: "; deltafoc_orig;
@@ -70,9 +70,9 @@ func build_bigim(data_set,xpos,ypos,variance,noeclat=)
     }
   }
   // crop the image
-  xy1 = 1+(size-stride)/2;
-  xy2 = 1+long(size/2+(nlin-0.5)*stride);
-  bigim = bigim(xy1:xy2,xy1:xy2);
+  // xy1 = 1+(size-stride)/2;
+  // xy2 = 1+long(size/2+(nlin-0.5)*stride);
+  // bigim = bigim(xy1:xy2,xy1:xy2);
   bigim += random_normal(dimsof(bigim))*sqrt(variance);
   return bigim;
 }
@@ -99,12 +99,13 @@ func centre_image(image,pd)
   return image;
 }
 
-func get_high_order_residuals(pd)
+func get_high_order_residuals(pd,config)
 {
   nopt    = nof(*pd.alt);
   nz12 = (*pd.nmod)(cum);
   nz1 = (nz12+1)(1:-1);
   nz2 = nz12(2:);
+  hocube = (*pd.truecube)*0;
 
   for (no=1;no<=nopt;no++) {
     mask1 = (*pd.maskcube)(,,no);
@@ -125,13 +126,22 @@ func get_high_order_residuals(pd)
     rec2d = array(0.0f,[2,pd.size,pd.size]);
     rec2d(wpatch) = rec;
     window,1; fma;
+    hocube(,,no) = ((*pd.truecube)(,,no)-rec2d)*mask1;
     plsys,3; pli,(*pd.truecube)(,,no)*mask1; pltitle_vp,"turbulent";
     plsys,2; pli,rec2d*mask1; pltitle_vp,"fitted";
-    plsys,1; pli,((*pd.truecube)(,,no)-rec2d)*mask1; pltitle_vp,"Residuals";
+    plsys,1; pli,hocube(,,no); pltitle_vp,"Residuals";
     // if (hitReturn()=="s") error;
-    pause,500;
+    pause,100;
     // (*pd.truecube)(,,no) = rec2d;
   }
+  // get strehl that correspond to the high order only:
+  cubesave = *pd.truecube; // save the actual cube
+  pd.truecube = &hocube;
+  strehlv = init_images(pd,config,object,start_strehl);
+  pd.truecube = &cubesave;
+  hocube = [];
+  write,format="\033[31mStrehl over FoV from high orders (fitting): avg=%.1f%%\033[0m rms=%.1f%%\n", \
+    100*avg(strehlv),100*strehlv(rms);
 }
 
 func fix_diskharmonic(&dh)
