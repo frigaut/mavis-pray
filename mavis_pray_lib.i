@@ -114,6 +114,7 @@ func get_high_order_residuals(pd,config)
     d = (*pd.def)(,,nz1(no):nz2(no))(*,)(wpatch,);
     d = d(,2:); // first slot is zero
     // add TT and focus that are missing from defs:
+    prepzernike,pd.size,pd.size,pd.centre,pd.centre;
     ttf = [zernike_ext(2),zernike_ext(3),zernike_ext(4)];
     ttf = ttf(*,)(wpatch,);
     d = _(ttf,d);
