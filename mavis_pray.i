@@ -44,14 +44,14 @@ on the particular optics). Probably. TODO.
 
 */
 
-write,format="%s\n%s\n","Try running","random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"dh\")";
-
-system,"echo 'random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"dh\")' | wl-copy";
-
 require,"mavis_pray.h";
 require,"mavis_pray_init.i";
 require,"mavis_pray_lib.i";
 require,"pray.i";
+
+write,format="\n%s\n%s\n","Try running","random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"dh\")";
+system,"echo 'random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"dh\")' | wl-copy";
+
 
 func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
 rseed=,verbose=,noinc=,modes=)
