@@ -44,11 +44,9 @@ on the particular optics). Probably. TODO.
 
 */
 
-write,format="%s\n%s\n","Try running","res=mavis_pray(,8,[0,-1.5,1.5],1000,0.,,disp=1,maxiter=50,rseed=random())";
-write,format="%s\n%s\n","Or","perfvsnit([50],8,[0,-1.5,1.5],100,0.001,rseed=random(),disp=1)";
-write,format="%s\n%s\n","Or","res=doitall([10,20,50],10,8,[0.,-1.5,1.5],10000,0.,disp=1)";
+write,format="%s\n%s\n","Try running","random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"dh\")";
 
-system,"echo 'res=mavis_pray(,8,[0,-1.5,1.5],1000,0.,,disp=1,maxiter=50,rseed=random())' | wl-copy";
+system,"echo 'random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"dh\")' | wl-copy";
 
 require,"mavis_pray.h";
 require,"mavis_pray_init.i";
