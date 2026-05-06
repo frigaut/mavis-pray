@@ -121,20 +121,30 @@ func init_defs(&pd,tiptilt=)
 
 
     if (usemodes=="zer") {
-      for (i=4;i<=(*pd.nmod)(k)+3;i++) {
-        cpt ++;
-        def(,,cpt) = zernike_ext(i);
+      start = 2;
+      pup = zernike(1); wout = where(pup==0);
+      defdm = array(0.,[3,pd.size,pd.size,(*pd.nmod)(k)]);
+      for (i=start;i<=(*pd.nmod)(k)+start-1;i++) {
+        defdm(,,i-start+1) = zernike(i);
       }
-      if (tiptilt != []) {
-       write,format="%s\n","Estimation of global TipTilt";
-        selz = _(4,2,3,4+indgen((*pd.nmod)(k)+10));
-        // get rid of spherical
-        //selz(10) = max(selz)+1;
-        for (i=4;i<=(*pd.nmod)(k)+3;i++) {
-          cpt ++;
-          def(,,cpt) = zernike_ext(selz(i-3));
-        }
+      defdm(*,)(wout,) = 1e6;
+      radeg = array(0.,(*pd.nmod)(k));
+      for (i=1;i<=(*pd.nmod)(k);i++) {
+        radeg(i) = zernumero(i+start-1)(1);
       }
+      defdm = defdm*(1./radeg^1.5)(-,-,);
+      def(,,nz1(k):nz2(k)) = defdm;
+      defdm = [];
+      // if (tiptilt != []) {
+      //  write,format="%s\n","Estimation of global TipTilt";
+      //   selz = _(4,2,3,4+indgen((*pd.nmod)(k)+10));
+      //   // get rid of spherical
+      //   //selz(10) = max(selz)+1;
+      //   for (i=4;i<=(*pd.nmod)(k)+3;i++) {
+      //     cpt ++;
+      //     def(,,cpt) = zernike_ext(selz(i-3));
+      //   }
+      // }
 
     } else if (usemodes=="kl") { // use KL
 
@@ -148,7 +158,7 @@ func init_defs(&pd,tiptilt=)
       // if (klpatch>pd.size) error,swrite(format="Patch size on optics %d too large, increase size or decrease altitude",k);
       // computes KLs, remove Tip and Tilt like
       kl = make_kl((*pd.nmod)(k)+6,klpatch,v,obas,pup1,oc=0.0,nr=128,verbose=0);
-      kl = order_kls(kl,patch_diam,upto=20); // otherwise focus might end up at random index
+      // kl = order_kls(kl,patch_diam,upto=20); // otherwise focus might end up at random index
       // at this point we have tip,tilt,focus and 2 astig as for zernikes.
       // scaling to get approximate strehl values qw the zernike when we use "coeff"
       // to generate perturbations:
