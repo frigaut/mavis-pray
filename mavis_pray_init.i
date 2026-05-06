@@ -160,7 +160,8 @@ func init_defs(&pd,tiptilt=)
       radeg = radeg(4:);
       // normalise so that future coef optimisation will be on coefs of about the same amplitude
       // kl = kl*(1./indgen(dimsof(kl)(0))^0.8)(-,-,);
-      kl = kl*(1./radeg^0.5)(-,-,);
+      // kl = kl*(1./radeg^0.5)(-,-,);
+      kl = kl*(1./radeg^1.5)(-,-,);
       if ((k==1)&verbose) write,format="%s\n","Experimental: setting KL outskirt to large value";
       w = where(kl(,,0)==0);
       kl(*,)(w,) = 1e6;
@@ -203,7 +204,7 @@ func init_defs(&pd,tiptilt=)
       w = where(pup==0);
       dh(*,)(w,) = 1e6;
       // normalise so that future coef optimisation will be about the same amplitude
-      dh = dh*(1./indgen((*pd.nmod)(k)+6)^0.8)(-,-,4:(*pd.nmod)(k)+3);
+      dh = dh*(1./indgen((*pd.nmod)(k)+6)^1.5)(-,-,4:(*pd.nmod)(k)+3);
       // def is supposed to have zernikes in them, with def(,,1) = true focus
       // def(,,1+nz12(k):nz12(k+1)) *= 0.;
       // stick in the DH, preserving zernike focus in position 1

@@ -132,7 +132,7 @@ func get_high_order_residuals(pd,config)
     plsys,2; pli,rec2d*mask1; pltitle_vp,"fitted";
     plsys,1; pli,hocube(,,no); pltitle_vp,"Residuals";
     // if (hitReturn()=="s") error;
-    pause,100;
+    pause,500;
     // (*pd.truecube)(,,no) = rec2d;
   }
   // get strehl that correspond to the high order only:

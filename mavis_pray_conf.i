@@ -20,8 +20,11 @@ rotv    = [[0.,0,0],[180,0,0]];
 // fit     = [1];
 // rotv    = [[0.]];
 
+// the blow works well with
+// random_seed,0.75; res=mavis_pray(,5,[0.,-1.5,1.5,-2.5,2.5],100000,1,,disp=1,maxiter=50,modes="dh")
+// 99.1% Strehl
 alt     = [0.,4000];
-nmod    = [100,100];
+nmod    = [200,200];
 nm_rmsv = [50,50]; // has to be defined if initphase = "screens"
 fit     = [1,1];
 apply   = [1,0];
