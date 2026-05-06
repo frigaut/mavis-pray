@@ -3,11 +3,11 @@
 // from https://docs.google.com/spreadsheets/d/1xxNe21pZ5DOW01jhxpFV5pQQLP1y0N2zne8CT-KiV0c/edit?gid=0#gid=0
 // # optics_name    altitude  nmerror checked comment
 start
- 1  Field_lens	      45.6    10.0
- 2  DM_High           13.5    30.0
- 3  DM_Low	           6.0    30.0
- 4  Collimator	       1.2    30.0     // NOT PRESENT in spreadsheet!
- 5  DM_DSM             0.0    30.0     // this need to be present for fitting? 30 arbitrary
+ 1  Field_lens	      45.6     4.0
+ 2  DM_High           13.5     0.0     // assigned 0 for now (6/4/26)
+ 3  DM_Low	           6.0     0.0     // assigned 0 for now (6/4/26)
+ 4  Collimator	       1.2    10.0     // confirmed by Davide 6/4/26 slack
+ 5  DM_DSM             0.0     0.0     // assigned 0 for now (6/4/26)
  6  LGS_Dichroic	    -1.9    47.0  *  // was 15nm changed on Feb 23, 2026
  7  ADC1	            -3.3     6.4  *
  8  ADC2	            -4.4     6.4  *

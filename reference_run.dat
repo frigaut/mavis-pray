@@ -1,0 +1,58 @@
+❯ git log
+commit 48a56a7b9fa9f095c2d565cea98956cd02cf5b40 (HEAD -> master)
+Author: Francois Rigaut <frigaut@gmail.com>
+Date:   Fri Apr 24 11:50:14 2026 +1000
+
+    Tweaks to init_windows: niri reordering of windows
+
+> random_seed,0.7; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=80,modes="dh");
+T=0.000s -> initialising windows
+T=0.086s -> initialising config
+T=0.086s -> configuration printout
+--------------------------------------------------------------------
+Pray for MAVIS (mavis_pray and pray) - System Configuration
+Number of optics: 10, Number of extra-focal pos.: 6, number of rotation: 2
+Extra focal distances: [0,-1.5,1.5]
+Optics conjug. altitude: [45500,13600,6000,1200,0,-1900,-4000,-12400,-23900,-29900]
+Optics WFE [nm]: [8.6,25.8,25.8,25.8,25.8,40.42,7.74,9.46,5.934,41.28]
+Number of modes (DH) per optics: [50,100,100,50,100,50,50,50,50,50]
+Fit optics?: [1,1,1,1,1,1,1,1,1,1]
+Init phase perturbation from Power spectrum (slope=-2.500)
+Optics rotation, config 1: [0,0,0,0,0,0,0,0,0,0]
+Optics rotation, config 2: [180,180,180,180,180,180,180,90,0,0]
+Number of sources = 8 across 30" FoV, 0 total, square geometry
+source flux = 100000.0, RON= 1
+Current random seed stored in extern last_random_seed, use as rseed to repeat current
+--------------------------------------------------------------------
+T=0.086s -> initialising image centring
+T=0.086s -> initialising target positions
+T=0.086s -> initialising defs
+T=7.796s -> initialising masks
+T=7.816s -> initialising perturbations
+T=7.838s -> initialising strehl normalisation
+Normalising Original Strehl to 41.0% (4 iterations)
+Current Strehl average = 61.5%, scaling by 1.354365
+Current Strehl average = 44.8%, scaling by 1.054335
+Current Strehl average = 41.7%, scaling by 1.009839
+Current Strehl average = 41.1%, scaling by 1.001924
+T=7.924s -> initialising images
+Computing initial images
+Strehl over FoV (rot=[0,0,0,0,0,0,0,0,0,0]): avg=43.2% rms=9.6%
+Strehl over FoV (rot=[180,180,180,180,180,180,180,90,0,0]): avg=38.8% rms=12.4%
+Strehl over FoV (all rotations): avg=41.0% rms=11.3%
+T=8.112s -> calling pray
+Using coeff = 0 as first guess
+# Iter.   Time (ms)    Eval. Reject.       Obj. Func.           Grad.       Step
+# ---------------------------------------------------------------------------------
+      0     868.964       1       0   3.814645951801297e+10   4.894e+10   0.000e+00
+     10   11714.032      12       0   2.386199046342370e+09   5.777e+09   1.000e+00
+     20   20722.413      22       0   1.156555109982864e+09   4.084e+09   1.000e+00
+     30   29771.583      32       0   7.360196782493446e+08   1.425e+09   1.000e+00
+     40   39566.167      43       0   6.373039032880514e+08   1.553e+09   4.721e-01
+     50   48535.826      53       0   5.487969748710505e+08   7.219e+08   1.000e+00
+     60   57573.290      63       0   4.846698669736422e+08   2.575e+09   1.000e+00
+     70   67766.353      74       0   4.439088728557341e+08   6.574e+08   1.000e+00
+     80   76636.861      84       0   4.220872142901695e+08   5.244e+08   1.000e+00
+# Termination: too many iterations
+Strehl over FoV after compensation: avg=91.7% rms=2.7%
+Strehl due to fit=0 optics only (full original rms): 100.0%
