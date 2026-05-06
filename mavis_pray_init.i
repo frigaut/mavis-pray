@@ -122,10 +122,10 @@ func init_defs(&pd,tiptilt=)
 
     if (usemodes=="zer") {
       start = 2;
-      pup = zernike(1); wout = where(pup==0);
+      pup = zernike_ext(1); wout = where(pup==0);
       defdm = array(0.,[3,pd.size,pd.size,(*pd.nmod)(k)]);
       for (i=start;i<=(*pd.nmod)(k)+start-1;i++) {
-        defdm(,,i-start+1) = zernike(i);
+        defdm(,,i-start+1) = zernike_ext(i);
       }
       defdm(*,)(wout,) = 1e6;
       radeg = array(0.,(*pd.nmod)(k));
