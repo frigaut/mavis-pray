@@ -8,6 +8,7 @@ Modes are either zernike, DH or KL.
 require,"yao.i";
 sim = sim_struct(); // for call to make_diskharmonic()
 sim.verbose = 0;
+if (debug==[]) debug=0;
 
 func generate_modes(modes, nmodes, dim, patchd, &pupil)
 /* DOCUMENT generate_modes(modes, nmodes, dim, patchd, &pupil)
@@ -27,9 +28,9 @@ func generate_modes(modes, nmodes, dim, patchd, &pupil)
     pupil = zernike(1);
   } else if (modes=="kl") {
     require,"yaokl.i";
-    v = obas = pup1 = []; // goes around a make_kl/yorick bug;
+    v = obas = pup1 = []; // goes around a make_kl/yorick bug
     kl = make_kl(nmodes,patchd,v,obas,pup1,oc=0.0,nr=128,verbose=0);
-    kl = order_kls(kl,patchd,upto=20);
+    // kl = order_kls(kl,patchd,upto=20);
     off = (dim-patchd)/2; i1 = 1+off; i2 = i1+patchd-1;
     mod(i1:i2,i1:i2,) = kl;
     pupil(i1:i2,i1:i2) = pup1;
@@ -150,20 +151,24 @@ func proj_to_dms(modes,ratiov,nmod_opt,nmod_dm,cond=)
   // Apply: c_dm_stacked = P_joint(,+) * c_opt(+)
   //
   // CHECKS
-  dim = 64;
-  mod_opt = generate_modes(modes, nmod_opt, dim, dim, pupil);
-  pupil_opt = pupil;
-  mod_dm1 = generate_modes(modes, nmod_dm, dim, dim/ratiov(1), pupil);
-  pupil_dm1 = pupil;
-  mod_dm2 = generate_modes(modes, nmod2, dim, dim/ratiov(2), pupil);
-  pupil_dm2 = pupil;
+  if (debug>90) {
+    if (ndm!=2) error,"Check only coded for 2 DMs";
+    dim = 64;
+    mod_opt = generate_modes(modes, nmod_opt, dim, dim, pupil);
+    pupil_opt = pupil;
+    mod_dm1 = generate_modes(modes, nmod_dm, dim, lround(dim/ratiov(1)), pupil);
+    pupil_dm1 = pupil;
+    mod_dm2 = generate_modes(modes, nmod_dm, dim, lround(dim/ratiov(2)), pupil);
+    pupil_dm2 = pupil;
 
-  if (optmode==[]) optmode=13; else optmode=long(optmode);
-  c_opt = array(0.,nmod_opt); c_opt(optmode)=1.;
-  dmc = P_joint(,+) * c_opt(+);
-  pha_opt = mod_opt(,,+)*c_opt(+);
-  pha_dm1 = mod_dm1(,,+)*dmc(1:nmod_dm)(+);
-  pha_dm2 = mod_dm2(,,+)*dmc(1+nmod_dm:2*nmod_dm)(+);
-  tv,transpose(_(pha_opt,pha_dm1,pha_dm2));
-  limits,square=1;
+    if (optmode==[]) optmode=13; else optmode=long(optmode);
+    c_opt = array(0.,nmod_opt); c_opt(optmode)=1.;
+    dmc = P_joint(,+) * c_opt(+);
+    pha_opt = mod_opt(,,+)*c_opt(+);
+    pha_dm1 = mod_dm1(,,+)*dmc(1:nmod_dm)(+);
+    pha_dm2 = mod_dm2(,,+)*dmc(1+nmod_dm:2*nmod_dm)(+);
+    tv,transpose(_(pha_opt,pha_dm1,pha_dm2));
+    limits,square=1;
+  }
+  return P_joint;
 }

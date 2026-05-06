@@ -14,17 +14,18 @@ fit     = [1,1,1];
 rotv    = [[0.,0,0],[180,0,0]];
 // rotv = [[0.,0,0],[120,120,0],[240,240,0]];
 
-alt     = [0.];
-nmod    = [100];
-nm_rmsv = [80]; // has to be defined if initphase = "screens"
-fit     = [1];
-rotv    = [[0.]];
+// alt     = [0.];
+// nmod    = [100];
+// nm_rmsv = [80]; // has to be defined if initphase = "screens"
+// fit     = [1];
+// rotv    = [[0.]];
 
-// alt     = [10000.,10000];
-// nmod    = [100,100];
-// nm_rmsv = [50,50]; // has to be defined if initphase = "screens"
-// fit     = [1,0];
-// rotv    = [[0.,0.]];
+alt     = [0.,4000];
+nmod    = [100,100];
+nm_rmsv = [50,50]; // has to be defined if initphase = "screens"
+fit     = [1,1];
+apply   = [1,0];
+rotv    = [[0.,0.]];
 
 // alt     = [0.,13500.]; //45000 seems to be the limit
 // nmod    = [150,150];
@@ -74,7 +75,7 @@ rotv    = [[0.]];
 //             [120,120 ,120 ,120 ,120,120,120,60   ,0     ,0],
 //             [240,240 ,240 ,240 ,240,240,240,120   ,0     ,0]];
 
-if (1) { // updated collimator 6/4/26
+if (0) { // updated collimator 6/4/26
   alt         = [45.5,13.6,6   ,1.2 ,0. ,-1.9,-4 ,-12.4,-23.9,-29.9]*1000; // altitude of optics, length nopt
   nm_rmsv     = [10. ,30  ,30  ,10  ,30 ,47  ,9  ,11.0 ,6.9   ,48  ]*0.86;
   nm=50; nmod = [nm  ,100 ,100 ,nm  ,100,nm  ,nm ,nm   ,nm    ,nm  ]; // number of modes per optics
