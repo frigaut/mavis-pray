@@ -83,6 +83,8 @@ func init_defs(&pd,tiptilt=)
  * initialise defs and other arrays
 */
 {
+  require,"projection.i";
+
   nopt    = nof(*pd.alt);
   ntarget = nof(*pd.xpos);
 
@@ -116,117 +118,27 @@ func init_defs(&pd,tiptilt=)
   // create modes per optic
   for (k=1;k<=nopt;k++) {
     patch_diam = long(ceil(pd.pupd+2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*(abs(alt(k)))/psize));
-    patch_diam = long(ceil(patch_diam/2.)*2);
-    prepzernike,pd.size,patch_diam+2,pd.centre,pd.centre;
+    patch_diam = long(ceil(patch_diam/2.)*2)+2;
 
-
-    if (usemodes=="zer") {
-      start = 2;
-      pup = zernike_ext(1); wout = where(pup==0);
-      defdm = array(0.,[3,pd.size,pd.size,(*pd.nmod)(k)]);
-      for (i=start;i<=(*pd.nmod)(k)+start-1;i++) {
-        defdm(,,i-start+1) = zernike_ext(i);
-      }
-      defdm(*,)(wout,) = 1e6;
-      radeg = array(0.,(*pd.nmod)(k));
-      for (i=1;i<=(*pd.nmod)(k);i++) {
-        radeg(i) = zernumero(i+start-1)(1);
-      }
-      defdm = defdm*(1./radeg^1.5)(-,-,);
+    defdm = generate_modes(usemodes, (*pd.nmod)(k), pd.size, patch_diam, pupil);
+    if (usemodes=="dh") defdm *= 5;
+    if (usemodes=="kl") defdm *= 4;
+    wout = where(pupil==0);
+    defdm(*,)(wout,) = 1e6;
+    // this returns tip,tilt,focus, etc
+    // normalise:
+    radeg = array(0.,(*pd.nmod)(k));
+    for (i=1;i<=(*pd.nmod)(k);i++) radeg(i) = zernumero(i+1)(1); // +1 because our modes start with tip, not piston
+    defdm = defdm*(1./radeg^1.5)(-,-,);
+    if (k==1) {
+      def(,,2:nz2(1)) = defdm(,,1:-1); // leave space for focus
+    } else {
       def(,,nz1(k):nz2(k)) = defdm;
-      defdm = [];
-      // if (tiptilt != []) {
-      //  write,format="%s\n","Estimation of global TipTilt";
-      //   selz = _(4,2,3,4+indgen((*pd.nmod)(k)+10));
-      //   // get rid of spherical
-      //   //selz(10) = max(selz)+1;
-      //   for (i=4;i<=(*pd.nmod)(k)+3;i++) {
-      //     cpt ++;
-      //     def(,,cpt) = zernike_ext(selz(i-3));
-      //   }
-      // }
-
-    } else if (usemodes=="kl") { // use KL
-
-      if ((k==1)&verbose) write,format="%s\n","Using KL instead of Zernike";
-      require,"yaokl.i";
-      pup1 = [];
-      // def *= 0;
-      if (k==1) def(,,nz1(k)) = *pd.focus;
-      if (k==nopt) def(,,nz1(k)) = *pd.focus;
-      klpatch = patch_diam+4;
-      // if (klpatch>pd.size) error,swrite(format="Patch size on optics %d too large, increase size or decrease altitude",k);
-      // computes KLs, remove Tip and Tilt like
-      kl = make_kl((*pd.nmod)(k)+6,klpatch,v,obas,pup1,oc=0.0,nr=128,verbose=0);
-      // kl = order_kls(kl,patch_diam,upto=20); // otherwise focus might end up at random index
-      // at this point we have tip,tilt,focus and 2 astig as for zernikes.
-      // scaling to get approximate strehl values qw the zernike when we use "coeff"
-      // to generate perturbations:
-      kl *= 4;
-      // normalisation, we use zernike radial order as these are similar
-      radeg = array(0.,dimsof(kl)(0));
-      for (i=1;i<=dimsof(kl)(0);i++) radeg(i) = zernumero(i)(1);
-      kl = kl(,,4:); // remove TT and focus
-      radeg = radeg(4:);
-      // normalise so that future coef optimisation will be on coefs of about the same amplitude
-      // kl = kl*(1./indgen(dimsof(kl)(0))^0.8)(-,-,);
-      // kl = kl*(1./radeg^0.5)(-,-,);
-      kl = kl*(1./radeg^1.5)(-,-,);
-      if ((k==1)&verbose) write,format="%s\n","Experimental: setting KL outskirt to large value";
-      w = where(kl(,,0)==0);
-      kl(*,)(w,) = 1e6;
-      if (klpatch<=size) {
-        def(size/2-klpatch/2+1:size/2+klpatch/2,size/2-klpatch/2+1:size/2+klpatch/2,nz1(k)+1:nz2(k)) = kl(,,1:(*pd.nmod)(k)-1);
-      } else {
-        def(,,nz1(k)+1:nz2(k)) = kl(klpatch/2-size/2+1:klpatch/2+size/2,klpatch/2-size/2+1:klpatch/2+size/2,1:(*pd.nmod)(k)-1);
-      }
-
-    } else if (usemodes=="dh") { // use DH
-
-      if ((k==1)&verbose) write,format="%s\n","Using DH instead of Zernike";
-      require,"yaodh.i";
-      sim.verbose = 0;
-      pup1 = [];
-      // def *= 0;
-      if (k==1) def(,,nz1(k)) = *pd.focus;
-      if (k==nopt) def(,,nz1(k)) = *pd.focus;
-      // dhpatch = ((patch_diam+4)/2)*2;
-      dhpatch = patch_diam+2;
-      // if (dhpatch>pd.size) error,swrite(format="Patch size on optics %d too large, increase size or decrease altitude",k);
-      // dhpatch = patch_diam; //write,dhpatch;
-      // computes KLs, remove Piston, Tip and Tilt
-      dh = make_diskharmonic(pd.size,dhpatch,(*pd.nmod)(k)+6,cobs=0.,xc=size/2+0.5,\
-        yc=size/2+0.5); // start with first quadratic (1:piston, 2:tip, 3:tilt)
-      pup = fix_diskharmonic(dh);
-      // get rid of DH focus:
-      tmp = dh(,,5); // focus
-      dh(,,5) = dh(,,4);
-      dh(,,4) = tmp; // we just swapped focus and astig
-      // dh = dh(,,4:)(,,1:(*pd.nmod)(k));
-      dh = dh(,,3:-1)(,,1:(*pd.nmod)(k));
-      // write,"\033[31mFIXME added TT to def!!!!! (init_defs, line 154)\033[0m";
-      // dh = make_diskharmonic(pd.size,dhpatch,(*pd.nmod)(k)+6,cobs=0.,xc=size/2+0.5,\
-      //   yc=size/2+0.5)(,,2:(*pd.nmod)(k)+1);
-      dh *= 5;
-      // focus is in position 2 now. astig in 1, put astig in 2
-      // dh(,,2) = dh(,,1); // focus has been added above in def pos 1
-      if ((k==1)&verbose) write,format="%s\n","Experimental: setting DH outskirt to large value";
-      w = where(pup==0);
-      dh(*,)(w,) = 1e6;
-      // normalise so that future coef optimisation will be about the same amplitude
-      dh = dh*(1./indgen((*pd.nmod)(k)+6)^1.5)(-,-,4:(*pd.nmod)(k)+3);
-      // def is supposed to have zernikes in them, with def(,,1) = true focus
-      // def(,,1+nz12(k):nz12(k+1)) *= 0.;
-      // stick in the DH, preserving zernike focus in position 1
-      def(,,nz1(k)+1:nz2(k)) = dh(,,2:);
-      // if (k==2) error;
-      // def = def(,,_(3,1,2,indgen(4:cpt)));}
-      // lpup = (def(,,nz1(k)) != 0);
-      // if (k==1) def(,,1+nz12(k):nz12(k+1)) = def(::-1,::-1,1+nz12(k):nz12(k+1));
-      // window,1; tv,def(,,nz12(k)+7); pltitle,swrite(format="%d",k); pause,1000;
-    } else error,"usemodes undefined or unknown";
-
+    }
+    defdm = [];
   }
+  def(,,1) = *pd.focus;
+
   pd.def = &def;
 
   // Init dmgsXYposcub : will be needed by get_2d_phase_from_cube

@@ -26,6 +26,10 @@ func generate_modes(modes, nmodes, dim, patchd, &pupil)
     prepzernike,dim,patchd,dim/2.+0.5,dim/2.+0.5;
     for (i=1;i<=nmodes;i++) mod(,,i) = zernike(i+1);
     pupil = zernike(1);
+  // } else if (modes=="zerext") {
+  //   prepzernike,dim,patchd,dim/2.+0.5,dim/2.+0.5;
+  //   for (i=1;i<=nmodes;i++) mod(,,i) = zernike_ext(i+1);
+  //   pupil = zernike_ext(1);
   } else if (modes=="kl") {
     require,"yaokl.i";
     v = obas = pup1 = []; // goes around a make_kl/yorick bug
@@ -35,7 +39,7 @@ func generate_modes(modes, nmodes, dim, patchd, &pupil)
     mod(i1:i2,i1:i2,) = kl;
     pupil(i1:i2,i1:i2) = pup1;
   } else if (modes=="dh") {
-    require,"yaokl.i";
+    require,"yaodh.i";
     mod = make_diskharmonic(dim,patchd,nmodes+1,cobs=0.,xc=dim/2+0.5,yc=dim/2+0.5)(,,2:);
     mod(,,[3,4]) = mod(,,[4,3]); // switch astig45 and focus
     w = where(mod(,,min)==0);
