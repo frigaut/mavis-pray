@@ -117,7 +117,6 @@ func init_defs(&pd,tiptilt=)
   for (k=1;k<=nopt;k++) {
     patch_diam = long(ceil(pd.pupd+2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*(abs(alt(k)))/psize));
     patch_diam = long(ceil(patch_diam/2.)*2);
-
     prepzernike,pd.size,patch_diam+2,pd.centre,pd.centre;
 
 
