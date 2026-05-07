@@ -306,6 +306,7 @@ func init_images(&pd,config,&object,&start_strehl)
       // images are centred, object is centred res is rol (so eclat(res) is centred)
       // images(,,i,n) = fft_convolve(object,eclat((*res(n))(,,i)));
       images(,,i,n) = eclat((*res(n))(,,i))*flux;
+      if (centre_init_images) images(,,i,n) = centre_image(images(,,i,n),pray_data);
       if (deltafoc(n)==0) {
         strehlv(i) = max(images(,,i,n)/sum(images(,,i,n)))/peak_airy;
         strehlv_at_focus = strehlv;
@@ -313,7 +314,7 @@ func init_images(&pd,config,&object,&start_strehl)
     }
     if (deltafoc(n)==0) {
       rotvstr = strjoin(swrite(format="%.0f",rotv(,config(n).roti)),",");
-      write,format="\033[31mStrehl over FoV (rot=[%s]): avg=%.1f%%\033[0m rms=%.1f%%\n", \
+      write,format="Strehl over FoV (rot=[%s]): avg=%.1f%% rms=%.1f%%\n", \
         rotvstr,100*avg(strehlv),100*strehlv(rms);
       grow,allstv,strehlv;
     }

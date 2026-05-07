@@ -14,6 +14,7 @@ func configuration_printout(void)
   for (i=1;i<=nrot;i++) { write,format="Optics rotation, config %d: ",i; rotv(,i); }
   write,format="Number of sources = %d across %.0f\" FoV, %d total, %s geometry\n",ngrid,fullfield,nof(xpos),geometry;
   write,format="source flux = %.1f, RON= %g\n",flux,ron;
+  write,format="Image centring: init:%s  pray:%s\n",(centre_init_images?"ON":"OFF"),(centre_pray_images?"ON":"OFF");
   if (imask_radius_scaling!=[]) \
     write,format="Image mask radius = %.0f%%\n",imask_radius_scaling*100;
   write,format="%s\n","Current random seed stored in extern last_random_seed, use as rseed to repeat current";
@@ -92,8 +93,8 @@ func mask_images(&pd,imask_radius_scaling)
 
 func centre_image(image,pd)
 {
-  return image;
-  cg = (image(,,-)*(*pd.xy4centring))(sum,sum,)/sum(image);
+  // return image;
+  cg = (image*(*pd.xy4centring))(sum,sum,)/sum(image);
   image = float(fftshift(image,-cg(1),-cg(2)));
   // tv,image; pause,5;
   return image;
@@ -130,13 +131,12 @@ func get_high_order_residuals(pd,config)
     hophase = ((*pd.truecube)(,,no)-rec2d);
     hophase = hophase-avg(hophase(where(mask1)));
     hocube(,,no) = hophase*mask1;
-    // hocube(,,no) = ((*pd.truecube)(,,no)-rec2d)*mask1;
-    plsys,3; pli,(*pd.truecube)(,,no)*mask1; pltitle_vp,"turbulent";
-    plsys,2; pli,rec2d*mask1; pltitle_vp,"fitted";
-    plsys,1; pli,hocube(,,no); pltitle_vp,"Residuals";
-    // if (hitReturn()=="s") error;
-    pause,200;
-    // (*pd.truecube)(,,no) = rec2d;
+    if (debug) {
+      plsys,3; pli,(*pd.truecube)(,,no)*mask1; pltitle_vp,"turbulent";
+      plsys,2; pli,rec2d*mask1; pltitle_vp,"fitted";
+      plsys,1; pli,hocube(,,no); pltitle_vp,"Residuals";
+      pause,500;
+    }
   }
   // get strehl that correspond to the high order only:
   cubesave = *pd.truecube; // save the actual cube

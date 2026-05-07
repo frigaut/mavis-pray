@@ -177,6 +177,17 @@ func compute_dms_projector(modes,ratiov,nmod_opt,nmod_dm,cond=)
   return P_joint;
 }
 
+func get_def(pd,noptic)
+{
+  nz12 = (*pd.nmod)(cum); nz1 = (nz12+1)(1:-1); nz2 = nz12(2:);
+  return (*pd.def)(,,nz1(noptic):nz2(noptic));
+}
+
+func get_coeff(pd,noptic)
+{
+  nz12 = (*pd.nmod)(cum); nz1 = (nz12+1)(1:-1); nz2 = nz12(2:);
+  return (*pd.coeffs)(,,nz1(noptic):nz2(noptic));
+}
 
 func project_to_dms(pd,mircube)
 /* DOCUMENT project_to_dms()
@@ -233,11 +244,10 @@ func project_to_dms(pd,mircube)
     // thus it requires the DMs to be sorted so that the ratiov is in increasing order
     order_active = sort(ratiov);
     ratiov = ratiov(order_active);
-    write,format="%s\n","Computing projectors passive -> active";
+/*    write,format="%s\n","Computing projectors passive -> active";
     P = compute_dms_projector(usemodes,ratiov,nmod_opt,nmod_dm,cond=100);
     // now fit the current passive optics to get mode coefficients:
-    write,format="Projecting phase on %s\n",usemodes;
-    phase = mircube(,,ipass);
+    // we already have the coefficients. They are in pd.coefs.
     // compute projector phase -> modes
     mod = generate_modes(usemodes, nmod_opt, pd.size, patch_passive, pupil);
     wpup = where(pupil);
@@ -247,6 +257,6 @@ func project_to_dms(pd,mircube)
     phalin = phase(wpup);
     c = proj(,+)*phalin(+);
     error;
-
+*/
   }
 }

@@ -2,7 +2,7 @@
 example of call:
 Overall wrappers:
 res=perfvsnit([100],4,[-1,0,1]*1.5,10000,0.1,rseed=random(),disp=0);
-res=doitall([20,30,50,100],10,4,[-1,0,1]*1.8,1,0.01)
+res=do_stats_vs_nit([20,30,50,100],10,4,[-1,0,1]*1.8,1,0.01)
 
 Configuration is defined in mavis_pray_config.i. Edit it and run
 perfvsnit() as above. The DM phase window may need to be killed if
@@ -173,7 +173,7 @@ rseed=,verbose=,noinc=,modes=)
     }
   }
 
-  if (debug) write,format="T=%.3fs -> Getting high order residuals\n",tac();
+  if (debug) write,format="T=%.3fs -> \033[32mGetting high order residuals\033[0m\n",tac();
   status = get_high_order_residuals(pray_data,config);
 
   if (debug) write,format="T=%.3fs -> initialising %s\n",tac(),"images";
@@ -191,6 +191,7 @@ rseed=,verbose=,noinc=,modes=)
   if (debug) write,format="T=%.3fs -> calling %s\n",tac(),"pray";
   res = pray(*pray_data.images,pray_data,deltafoc,variance,object,disp=disp,verbose=verbose,\
     threshold=threshold,nbiter=maxiter);
+  pray_data.coeffs = &res;
 
   //***************************************
   // Analyse and plot results
@@ -206,9 +207,6 @@ rseed=,verbose=,noinc=,modes=)
   *pray_data.truecube = origcube - *pray_data.mircube;
   psfs = compute_psfs(pray_data,0,res*0,amp1,amp2,nodisp=1,fromscreens=1);
   disp_im = build_bigim(psfs,xpos,ypos,variance*0);
-  // window,1;
-  // fma; pli,disp_im; limits,square=1;
-  // pltitle,swrite(format="%s","Phase corrected image");
 
   strehlv = array(0.,ntarget);
   for (i=1;i<=ntarget;i++) {
@@ -285,11 +283,12 @@ func perfvsnit(nitv,ngrid,deltafoc,flux,ron,rseed=,disp=)
   return [nitv,errnm,st_start_vsnit,st_start_spatial_rms_vsnit,st_end_vsnit,st_end_spatial_rms_vsnit];
 }
 
-func doitall(nitv,nsamp,ngrid,deltafoc,flux,ron,disp=)
+func do_stats_vs_nit(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed,disp=)
 {
   allststart = allstend = array(_(0.,nitv*0.),nsamp);
+  random_seed,rseed;
   for (k=1;k<=nsamp;k++) {
-    write,format="\ndoitall() iteration: %d/%d\n",k,nsamp;
+    write,format="\n\033[32mdo_stats_vs_nit() iteration: %d/%d\033[0m\n",k,nsamp;
     res = perfvsnit(nitv,ngrid,deltafoc,flux,ron,rseed=random(),disp=disp);
     allststart(,k) = res(,3); // start strehls vs nit
     allstend(,k) = res(,5); // end strehls vs nit

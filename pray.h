@@ -11,6 +11,7 @@ struct pray_struct
   pointer truecube;
   pointer maskcube;
   pointer truecoeffs;
+  pointer coeffs;
   pointer def;
   pointer variance;
   pointer norm;

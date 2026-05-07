@@ -261,7 +261,7 @@ func compute_psfs(&pd,xfoc,coeff,&ampli_pup,&ampli_foc,rotv=,nodisp=,fromscreens
   for (i=1;i<=ntarget;i++) {
     psfs(,,i) = phase2psf(bphase(pd._n1:pd._n2,pd._n1:pd._n2,i),\
       (*pd.ipupil)(pd._n1:pd._n2,pd._n1:pd._n2),pd.size,amp1,amp2);
-    if (centre_images) {
+    if (centre_pray_images) {
       ima = eclat(psfs(,,i));
       psfs(,,i) = eclat(centre_image(ima,pd));
     }
