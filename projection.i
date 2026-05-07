@@ -98,8 +98,8 @@ func proj_modes_from_to(modes,ratio,nmod1,nmod2)
   return p2on1;
 }
 
-func proj_to_dms(modes,ratiov,nmod_opt,nmod_dm,cond=)
-/* DOCUMENT proj_to_dms(modes,ratiov,nmodv)
+func compute_dms_projector(modes,ratiov,nmod_opt,nmod_dm,cond=)
+/* DOCUMENT compute_dms_projector(modes,ratiov,nmodv)
  * Computes the optimal projection matrix from one plan (plano=plan object)
  * to several DMs.
  * modes: "zer","kl" or "dh"
@@ -175,4 +175,72 @@ func proj_to_dms(modes,ratiov,nmod_opt,nmod_dm,cond=)
     limits,square=1;
   }
   return P_joint;
+}
+
+
+func project_to_dms(pd,mircube)
+/* DOCUMENT project_to_dms()
+ * project_to_dms(): we have mircube, for each non "active" optics OPT:
+ * project_to_dms(): compute projection matrices
+ * project_to_dms(): fit optics with modes -> coefs
+ * project_to_dms(): projects coefs onto DMs, add phase to mircube DM plans
+ * project_to_dms(): zero mircube(,,OPT)
+ *
+ */
+{
+  // before starting:
+  active = *pd.active;
+  passive = 1-active;
+  wpassive = where(passive==1); npassive = nof(wpassive);
+  if (npassive==0) {
+    write,format="No \"passive\" optics, no projection to do."
+    return mircube;
+  }
+  wactive = where(active==1); nactive = nof(wactive);
+  // write,npassive,nactive;
+  if (nactive==0) {
+    write,format="No \"active\" optics, nothing to project on."
+    return mircube;
+  }
+  // precomputations:
+  psize = pd.teldiam/pd.pupd;
+  // active (DMs) characteristics:
+  alt_active = (*pd.alt)(wactive);
+  nmod_dm = (*pd.nmod)(wactive);
+  if (nallof(nmod_dm==nmod_dm(1))) error,"nmodes should be the same for all active optics";
+  nmod_dm = nmod_dm(1);
+  // write,nmod_dm;
+  // write,alt_active;
+  // Loop on passive optics. Each in turn will be projected to the active DMs
+  for (nopt=1;nopt<=npassive;nopt++) {
+    ipass = wpassive(nopt);
+    nmod_opt = (*pd.nmod)(ipass);
+    // calculation of patch ratios via altitude difference and kernel:
+    alt_pass = (*pd.alt)(ipass);
+    delta_alt = abs(alt_active-alt_pass);
+    kernel_m = 2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*delta_alt;
+    kernel_pix = kernel_m/psize;
+    patch_diam = pd.pupd+2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*delta_alt/psize;
+    ratiov = patch_diam/pd.pupd;
+    patch_passive = pd.pupd+2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*(*pd.alt)(ipass)/psize;
+    // write,ipass,alt_pass;
+    // write,delta_alt,patch_diam,ratiov;
+    // in the calculation of the projector, we compute DM to DM projection too.
+    // thus it requires the DMs to be sorted so that the ratiov is in increasing order
+    order_active = sort(ratiov);
+    ratiov = ratiov(order_active);
+    write,format="%s\n","Computing projectors passive -> active";
+    P = compute_dms_projector(usemodes,ratiov,nmod_opt,nmod_dm,cond=100);
+    // now fit the current passive optics to get mode coefficients:
+    write,format="Projecting phase on %s\n",usemodes;
+    phase = mircube(,,ipass);
+    // compute projector phase -> modes
+    mod = generate_modes(usemodes, nmod_opt, pd.size, patch_passive, pupil);
+    wpup = where(pupil);
+    modlin = mod(*,)(wpup,);
+    mtm = modlin(+,)*modlin(+,);
+    proj = LUsolve(mtm)(+,)*modlin(,+);
+    error;
+
+  }
 }

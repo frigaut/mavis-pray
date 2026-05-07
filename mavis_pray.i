@@ -131,6 +131,8 @@ rseed=,verbose=,noinc=,modes=)
   pray_data.centre  = centre;
   pray_data.nmod    = &nmod;
   pray_data.alt     = &alt;
+  pray_data.active  = &active;
+  pray_data.patch_diam = &(alt*0.);
 
   if (debug) write,format="T=%.3fs -> initialising %s\n",tac(),"image centring";
   status = init_image_centring(pray_data);
@@ -199,7 +201,8 @@ rseed=,verbose=,noinc=,modes=)
   // first compute mircube for 0 focus:
   compute_psfs,pray_data,0,res,amp1,amp2,nodisp=1,fromscreens=0;
   // now pray_data.mircube should contains the estimated phase at foc=0.
-  // subtract estimate from original phases:
+  // subtract estimate from original phases.
+  // The PSFs are computed from "truecube"
   *pray_data.truecube = origcube - *pray_data.mircube;
   psfs = compute_psfs(pray_data,0,res*0,amp1,amp2,nodisp=1,fromscreens=1);
   disp_im = build_bigim(psfs,xpos,ypos,variance*0);
@@ -221,13 +224,21 @@ rseed=,verbose=,noinc=,modes=)
   st = exp(-(2*pi/lambda*sqrt(sum(tmp^2.))));
   write,format="Strehl due to fit=0 optics only (full original rms): %.1f%%\n",st*100;
 
-  if (allof(apply)) {
-    write,format="%s\n","All apply are set to one, no fitting to do.";
+  if (allof(active)) {
+    write,format="%s\n","All active are set to one, no fitting to do.";
     return [start_strehl,end_strehl]; // with rms, e.g. [[0.4492,0.0343104],[0.968047,0.0202398]]
   }
 
   // now fit aberrations to actual DMs and compensate
-
+  // strategy:
+  // fitcube = mircube
+  // project_to_dms(): we have mircube, for each non "active" optics OPT:
+  // project_to_dms(): compute projection matrices
+  // project_to_dms(): fit optics with modes -> coefs
+  // project_to_dms(): projects coefs onto DMs, add phase to mircube DM plans
+  // project_to_dms(): zero mircube(,,OPT)
+  // *pray_data.truecube = origcube - *pray_data.mircube;
+  // compute_psf
 
   return [start_strehl,end_strehl]; // with rms, e.g. [[0.4492,0.0343104],[0.968047,0.0202398]]
 }
@@ -284,8 +295,8 @@ func doitall(nitv,nsamp,ngrid,deltafoc,flux,ron,disp=)
     allstend(,k) = res(,5); // end strehls vs nit
     nitv2 = res(,1); // nit vector, including 0
   }
-  if (window_exists(1)) window,1;
-  else window,1,wait=1,dpi=long(dpi_target_small);
+  if (window_exists(3)) window,3;
+  else window,3,wait=1,dpi=long(dpi_target_small);
   fma;
   w = where((abs(allstend(0,)-median(allstend(0,)))<3*allstend(0,rms)));
   write,format="Kept %d out of %d samples\n",nof(w),nsamp;

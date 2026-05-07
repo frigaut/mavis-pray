@@ -1,9 +1,9 @@
-usemodes  = "kl";        // "dh" (recommended, works well), "kl" or "zer"
-geometry  = "square"; // "square" or "hexagonal"
+usemodes  = "zer";        // "dh" (recommended, works well), "kl" or "zer"
+// geometry  = "square"; // "square" or "hexagonal"
 geometry  = "hexagonal"; // "square" or "hexagonal"
 // fovshape  = "round";     // "round" if desired if not will default to square
 fovshape  = "square";     // "round" if desired if not will default to square
-initphase = "coefs";   // "coefs" or "screens"
+// initphase = "coefs";   // "coefs" or "screens"
 initphase = "screens";   // "coefs" or "screens"
 
 // parameters defined statically:
@@ -11,24 +11,34 @@ alt     = [0.,6000,13500.]; //45000 seems to be the limit
 nmod    = [50,50,50]*2;
 nm_rmsv = [30,50,30]*1.2; // has to be defined if initphase = "screens"
 fit     = [1,1,1];
+active  = [1,1,1];
 rotv    = [[0.,0,0],[180,0,0]];
 // rotv = [[0.,0,0],[120,120,0],[240,240,0]];
 
 // alt     = [0.];
-// nmod    = [100];
+// nmod    = [200];
 // nm_rmsv = [80]; // has to be defined if initphase = "screens"
 // fit     = [1];
+// active  = [1];
 // rotv    = [[0.]];
 
 // the blow works well with
 // random_seed,0.75; res=mavis_pray(,5,[0.,-1.5,1.5,-2.5,2.5],100000,1,,disp=1,maxiter=50,modes="dh")
 // 99.1% Strehl
 alt     = [0.,4000];
-nmod    = [200,200];
+nmod    = [100,100];
 nm_rmsv = [50,50]; // has to be defined if initphase = "screens"
 fit     = [1,1];
-apply   = [1,0];
+active  = [1,0];
 rotv    = [[0.,0.]];
+
+// To test projection:
+alt     = [8000.,4000.,0.,-4000];
+nmod    = [100,100,100,100];
+nm_rmsv = [50,50,50,50]; // has to be defined if initphase = "screens"
+fit     = [1,1,1,1];
+active  = [0,1,1,0];
+rotv    = [[0.,0,0,0]];
 
 // alt     = [0.,13500.]; //45000 seems to be the limit
 // nmod    = [150,150];
@@ -83,7 +93,7 @@ if (0) { // updated collimator 6/4/26
   nm_rmsv     = [10. ,30  ,30  ,10  ,30 ,47  ,9  ,11.0 ,6.9   ,48  ]*0.86;
   nm=50; nmod = [nm  ,100 ,100 ,nm  ,100,nm  ,nm ,nm   ,nm    ,nm  ]; // number of modes per optics
   fit         = [1   ,1   ,1   ,0   ,1  ,0   ,0  ,0    ,0     ,1   ];
-  apply       = [0   ,1   ,1   ,0   ,1  ,0   ,0  ,0    ,0     ,0   ];
+  active      = [0   ,1   ,1   ,0   ,1  ,0   ,0  ,0    ,0     ,0   ];
   rotv        = [[0. ,0   ,0   ,0   ,0  ,0   ,0  ,0    ,0     ,0   ],
                 [180 ,180 ,180 ,180 ,180,180 ,180,90   ,0     ,0   ]];
   fit         = fit*0+1;
@@ -106,19 +116,19 @@ if (0) {
   wkm        = where(strmatch(opt_name,"K-Mirr2"))(1);
   alt        = opt_alt*1000; // altitude of optics, length nopt
   nm_rmsv    = opt_wfe;
-  nmod = fit = apply = array(0,nopt); rot1 = rot2 = array(0.,nopt);
+  nmod = fit = active = array(0,nopt); rot1 = rot2 = array(0.,nopt);
   nmod       = nmod*0+50; nmod(wdm) = 100;
   fit(wdm)   = 1;
   rot2(1:wkm-1) = 180; rot2(wkm) = 90;
   rotv       = [rot1,rot2];
   fit        = fit*0+1;
-  apply(wdm) = 1;
+  active(wdm) = 1;
 }
 
 
 
 w = where(fit==0); if (nof(w)) nmod(w) = 2;
-if (apply==[]) apply = fit*0+1;
+if (active==[]) active = fit*0+1;
 
 weight           = array(2./sqrt(nof(alt)),nof(nmod)); // mode weights (static aberrations)
 fullfield        = 30.; // full field in arcsec (on the side) - why 40 and not 30?

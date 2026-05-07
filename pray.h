@@ -16,6 +16,8 @@ struct pray_struct
   pointer norm;
   pointer nmod;
   pointer alt;
+  pointer active;
+  pointer patch_diam;
   pointer ipupil;
   pointer dmgsxposcub;
   pointer dmgsyposcub;

@@ -118,6 +118,7 @@ func init_defs(&pd,tiptilt=)
   // create modes per optic
   for (k=1;k<=nopt;k++) {
     patch_diam = long(ceil(pd.pupd+2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*(abs(alt(k)))/psize));
+    (*pd.patch_diam)(k) = patch_diam;
     patch_diam = long(ceil(patch_diam/2.)*2)+2;
 
     defdm = generate_modes(usemodes, (*pd.nmod)(k), pd.size, patch_diam, pupil);
