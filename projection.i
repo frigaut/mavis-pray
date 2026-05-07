@@ -209,6 +209,9 @@ func project_to_dms(pd,mircube)
   nmod_dm = (*pd.nmod)(wactive);
   if (nallof(nmod_dm==nmod_dm(1))) error,"nmodes should be the same for all active optics";
   nmod_dm = nmod_dm(1);
+  // modes for DMs:
+  // for (n)
+
   // write,nmod_dm;
   // write,alt_active;
   // Loop on passive optics. Each in turn will be projected to the active DMs
@@ -222,7 +225,8 @@ func project_to_dms(pd,mircube)
     kernel_pix = kernel_m/psize;
     patch_diam = pd.pupd+2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*delta_alt/psize;
     ratiov = patch_diam/pd.pupd;
-    patch_passive = pd.pupd+2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*(*pd.alt)(ipass)/psize;
+    patch_passive = (*pd.patch_diam)(ipass);
+    // patch_passive = pd.pupd+2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*(*pd.alt)(ipass)/psize;
     // write,ipass,alt_pass;
     // write,delta_alt,patch_diam,ratiov;
     // in the calculation of the projector, we compute DM to DM projection too.
@@ -240,6 +244,8 @@ func project_to_dms(pd,mircube)
     modlin = mod(*,)(wpup,);
     mtm = modlin(+,)*modlin(+,);
     proj = LUsolve(mtm)(+,)*modlin(,+);
+    phalin = phase(wpup);
+    c = proj(,+)*phalin(+);
     error;
 
   }

@@ -101,10 +101,10 @@ func centre_image(image,pd)
 
 func get_high_order_residuals(pd,config)
 {
-  nopt    = nof(*pd.alt);
-  nz12 = (*pd.nmod)(cum);
-  nz1 = (nz12+1)(1:-1);
-  nz2 = nz12(2:);
+  nopt   = nof(*pd.alt);
+  nz12   = (*pd.nmod)(cum);
+  nz1    = (nz12+1)(1:-1);
+  nz2    = nz12(2:);
   hocube = (*pd.truecube)*0;
 
   for (no=1;no<=nopt;no++) {
@@ -112,12 +112,12 @@ func get_high_order_residuals(pd,config)
     mask2 = (*pd.def)(,,nz1(no)+1) < 100;
     wpatch = where(mask2);
     d = (*pd.def)(,,nz1(no):nz2(no))(*,)(wpatch,);
-    d = d(,2:); // first slot is zero
-    // add TT and focus that are missing from defs:
-    prepzernike,pd.size,pd.size,pd.centre,pd.centre;
-    ttf = [zernike_ext(2),zernike_ext(3),zernike_ext(4)];
-    ttf = ttf(*,)(wpatch,);
-    d = _(ttf,d);
+    // d = d(,2:); // first slot is zero
+    // add TT and focus that are missing from defs: NOT ANYMORE
+    // prepzernike,pd.size,pd.size,pd.centre,pd.centre;
+    // ttf = [zernike_ext(2),zernike_ext(3),zernike_ext(4)];
+    // ttf = ttf(*,)(wpatch,);
+    // d = _(ttf,d);
     ddt = d(+,)*d(+,);
     ddtm1 = LUsolve(ddt);
     dm1 = ddtm1(,+)*d(,+);
@@ -125,14 +125,17 @@ func get_high_order_residuals(pd,config)
     proj = dm1(,+)*phase(+);
     rec = d(,+)*proj(+);
     rec2d = array(0.0f,[2,pd.size,pd.size]);
-    rec2d(wpatch) = rec;
+    rec2d(wpatch) = rec-avg(rec); // pistong subtracted
     window,1; fma;
-    hocube(,,no) = ((*pd.truecube)(,,no)-rec2d)*mask1;
+    hophase = ((*pd.truecube)(,,no)-rec2d);
+    hophase = hophase-avg(hophase(where(mask1)));
+    hocube(,,no) = hophase*mask1;
+    // hocube(,,no) = ((*pd.truecube)(,,no)-rec2d)*mask1;
     plsys,3; pli,(*pd.truecube)(,,no)*mask1; pltitle_vp,"turbulent";
     plsys,2; pli,rec2d*mask1; pltitle_vp,"fitted";
     plsys,1; pli,hocube(,,no); pltitle_vp,"Residuals";
     // if (hitReturn()=="s") error;
-    pause,500;
+    pause,200;
     // (*pd.truecube)(,,no) = rec2d;
   }
   // get strehl that correspond to the high order only:

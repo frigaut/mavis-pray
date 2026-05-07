@@ -109,10 +109,6 @@ func init_defs(&pd,tiptilt=)
   psize = pd.teldiam/pd.pupd;
   cpt = 0;
 
-  // extern focus;
-  // FIXME: there is only one array and several nopt? yes, because it is
-  // way oversized and the amplitude doesn't really matter?
-  // FIXED
   pd.focus = &((sqrt(3.)*dist(pd.size,xc=pd.size/2.+0.5,yc=pd.size/2.+0.5)/(pd.pupd/2.))^2.);
 
   // create modes per optic
@@ -131,14 +127,9 @@ func init_defs(&pd,tiptilt=)
     radeg = array(0.,(*pd.nmod)(k));
     for (i=1;i<=(*pd.nmod)(k);i++) radeg(i) = zernumero(i+1)(1); // +1 because our modes start with tip, not piston
     defdm = defdm*(1./radeg^1.5)(-,-,);
-    if (k==1) {
-      def(,,2:nz2(1)) = defdm(,,1:-1); // leave space for focus
-    } else {
-      def(,,nz1(k):nz2(k)) = defdm;
-    }
+    def(,,nz1(k):nz2(k)) = defdm;
     defdm = [];
   }
-  def(,,1) = *pd.focus;
 
   pd.def = &def;
 
@@ -208,9 +199,9 @@ func init_perturbation(&pd,&coeff,&cmin,&cmax)
   // var = 0.;
   for (no=1;no<=nopt;no++) {
     c = weight(no)*(random(nmod(no))-0.5)/sqrt(indgen(nmod(no)));
-    c(1) = 0.; // FIXME
+    // c(1) = 0.; // FIXME
     cmx = 20*weight(no)/sqrt(indgen(nmod(no)))*fit(no);
-    cmx(1:2) = 0.; // FIXME
+    // cmx(1:2) = 0.; // FIXME
     // if (no>=2) cmx *= 0;
     cmn = -cmx;
     grow,coeff,c;

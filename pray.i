@@ -330,16 +330,16 @@ func get_def_in_pupil_from_dir(pd,ndir,rotv=)
   return mydef;
 }
 
-func pray_error(param,&gradient,extra=)
+func pray_error(coeffs,&gradient,extra=)
 /* DOCUMENT pray_error
  *
- * criterion=pray_error(param,gradient,extra)
+ * criterion=pray_error(coefs,gradient,extra)
  *
  * This routine returns the error (global criterion) function to be
  * minimized in pray
  *
  * KEYWORDS :
- * param        (input)  : The parameters to be mimimized
+ * coefs        (input)  : The parameters to be mimimized
  * gradient    (output)  : The gradient of this error function with repect
  *                         to the parameters
  * extra        (input)  : A structure containing all necessary parameters
@@ -350,7 +350,6 @@ func pray_error(param,&gradient,extra=)
 {
   local deltafoc;
 
-  coeffs   = param;
   ncoeffs   = nof(coeffs);
 
   ntarget = dimsof(*extra.images)(4);
