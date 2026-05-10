@@ -7,7 +7,7 @@ Modes are either zernike, DH or KL.
 */
 require,"yao.i";
 sim = sim_struct(); // for call to make_diskharmonic()
-sim.verbose = 0;
+sim.verbose = 0
 if (debug==[]) debug=0;
 
 func generate_modes(modes, nmodes, dim, patchd, &pupil)
@@ -26,10 +26,10 @@ func generate_modes(modes, nmodes, dim, patchd, &pupil)
     prepzernike,dim,patchd,dim/2.+0.5,dim/2.+0.5;
     for (i=1;i<=nmodes;i++) mod(,,i) = zernike(i+1);
     pupil = zernike(1);
-  // } else if (modes=="zerext") {
-  //   prepzernike,dim,patchd,dim/2.+0.5,dim/2.+0.5;
-  //   for (i=1;i<=nmodes;i++) mod(,,i) = zernike_ext(i+1);
-  //   pupil = zernike_ext(1);
+  } else if (modes=="zerext") {
+    prepzernike,dim,patchd,dim/2.+0.5,dim/2.+0.5;
+    for (i=1;i<=nmodes;i++) mod(,,i) = zernike_ext(i+1);
+    pupil = zernike_ext(1);
   } else if (modes=="kl") {
     require,"yaokl.i";
     v = obas = pup1 = []; // goes around a make_kl/yorick bug
@@ -41,12 +41,19 @@ func generate_modes(modes, nmodes, dim, patchd, &pupil)
   } else if (modes=="dh") {
     require,"yaodh.i";
     mod = make_diskharmonic(dim,patchd,nmodes+1,cobs=0.,xc=dim/2+0.5,yc=dim/2+0.5)(,,2:);
-    mod(,,[3,4]) = mod(,,[4,3]); // switch astig45 and focus
+    if (nmodes>=3) mod(,,[3,4]) = mod(,,[4,3]); // switch astig45 and focus
     w = where(mod(,,min)==0);
     pupil += 1; pupil(w)=0;
     mod = mod*pupil(,,-); // fixes non zero pixels outside pupil for azimuthal order=0 modes
   }
   return mod;
+}
+
+func remove_mode(pha,pupil,mode)
+{
+  c = sum(pha*pupil*mode)/sum(mode*mode*pupil);
+  pha = (pha-c*mode)*pupil;
+  return pha;
 }
 
 func proj_modes_from_to(modes,ratio,nmod1,nmod2)
@@ -59,15 +66,23 @@ func proj_modes_from_to(modes,ratio,nmod1,nmod2)
  * Returns p2on1 (projection of 2 on 1) array [2,nmod1,nmod2]
  * to get coefficients on plan1 knowing coefficient on plan2 coef2:
  * coef1 = p2on1(,+)*coef2(+)
+ * SEE ALSO: proj_modes_from_to_for_study() in projection_study.i for 
+ * a full blow detailled function and analysis. This has been checked, it works.
  */
 {
-  if (ratio<1) error,"ratio has to be >=1";
+  if (ratio<1) {
+    // error,"ratio has to be >=1";
+    if (debug>10) write,format="%s\n","Ratio < 1, inverting"
+    ratio = 1./ratio;
+  }
+  // if (optim_fov_factor!=[]) ratio = 1+(ratio-1)*optim_fov_factor; // doesn't appear to work
+  sim = sim_struct(); sim.verbose = 0;
   dim = 64;
   patchd2 = dim;
   patchd1 = lround(dim/ratio);
   p2on1 = array(0.,[2,nmod1,nmod2]);
-  // can't make modes with fractional patchd. will have to up idm and patchd to do this
-  // calculation to reduce effect of rounding errors
+  // can't make modes with fractional patchd. will have to up dim and patchd to 
+  // do this calculation to reduce effect of rounding errors
   // kernel diameter is patch2-patch1
   ker = dist(dim)<=((patchd2-patchd1)/2.);
   ker = float(ker)/sum(ker);
@@ -75,36 +90,31 @@ func proj_modes_from_to(modes,ratio,nmod1,nmod2)
   pupil1 = pupil;
   mod2 = generate_modes(modes, nmod2, dim, patchd2, pupil);
   pupil2 = pupil;
-  // tv,fft_convolve(mod2(,,13),ker)*pupil1;
-  // modes in plan1 (smallest patch) to determine projection of
-  // phase to modes1:
+  // modes in plan1 (smallest patch) to determine projection of phase to modes1:
   wpup1 = where(pupil1);
   mod1lin = mod1(*,)(wpup1,);
+  mod1lin -= avg(mod1lin);
   mtm = mod1lin(+,)*mod1lin(+,);
   proj = LUsolve(mtm)(+,)*mod1lin(,+);
-  // coef = proj(,+)*mod1lin(+,4); // check, all good
   for (nm2=1;nm2<=nmod2;nm2++) {
     mode2 = mod2(,,nm2);
-    cm = (fft_convolve(mod2(,,nm2),ker)*pupil1)(*)(wpup1);
+    cm = fft_convolve(mod2(,,nm2),ker);
+    cm *= pupil1;
+    cm = cm(*)(wpup1);
+    cm -= avg(cm);
     p2on1(,nm2) = proj(,+)*cm(+);
-    // if (debug>100) {
-    //   ar2 = mod2(,,nm2);
-    //   ar2on1 = fft_convolve(mod2(,,nm2),ker)*pupil1;
-    //   ar1 = p2on1(,nm2)(+)*mod1(,,+);
-    //   tv,_(ar2,ar2on1,ar1); limits,square=1;
-    //   if (hitReturn()=="q") return p2on1;
-    // }
   }
   return p2on1;
 }
+
 
 func compute_dms_projector(modes,ratiov,nmod_opt,nmod_dm,cond=)
 /* DOCUMENT compute_dms_projector(modes,ratiov,nmodv)
  * Computes the optimal projection matrix from one plan (plano=plan object)
  * to several DMs.
  * modes: "zer","kl" or "dh"
- * ratiov: vector of ratio of DMs to plano. All elements have to be >= 1
- * and in creasing order.
+ * ratiov: vector of ratio of DMs to plano. 
+ * NOT NAYMORE: All elements have to be >= 1 and in creasing order.
  * example: [1.5, 1.8]. See proj_modes_from_to. In this example, the ratio
  * between plano and the DMs (2 DMs) are 1.5 and 1.8. The ratio between the proj_to_dms
  * themselves will be cmoputed from this. numberof(ratiov) = number of DMs
@@ -130,33 +140,39 @@ func compute_dms_projector(modes,ratiov,nmod_opt,nmod_dm,cond=)
       // ratio of meta-pupil diameters between DM i and DM j
       ratio_ij = ratiov(j)/ratiov(i);
       P_ij = proj_modes_from_to(modes, ratio_ij, nmod_dm, nmod_dm);
-      // G_tilde(1+(j-1)*nmod_dm:j*nmod_dm, 1+(i-1)*nmod_dm:i*nmod_dm) = transpose(P_ij);
-      // G_tilde(1+(i-1)*nmod_dm:i*nmod_dm, 1+(j-1)*nmod_dm:j*nmod_dm) = P_ij;
-      G_tilde(1+(j-1)*nmod_dm:j*nmod_dm, 1+(i-1)*nmod_dm:i*nmod_dm) = P_ij;
-      G_tilde(1+(i-1)*nmod_dm:i*nmod_dm, 1+(j-1)*nmod_dm:j*nmod_dm) = transpose(P_ij);
+      G_tilde(1+(j-1)*nmod_dm:j*nmod_dm, 1+(i-1)*nmod_dm:i*nmod_dm) = transpose(P_ij);
+      G_tilde(1+(i-1)*nmod_dm:i*nmod_dm, 1+(j-1)*nmod_dm:j*nmod_dm) = P_ij;
+      // G_tilde(1+(j-1)*nmod_dm:j*nmod_dm, 1+(i-1)*nmod_dm:i*nmod_dm) = P_ij;
+      // G_tilde(1+(i-1)*nmod_dm:i*nmod_dm, 1+(j-1)*nmod_dm:j*nmod_dm) = transpose(P_ij);
     }
   }
-  if (debug>100) { tv,G_tilde; pltitle,escapechar("G_tilde"); pause,500; }
+  if (debug>100) { tv,G_tilde; pltitle,escapechar("G_tilde"); hitReturn; }
   // Build the RHS M_tilde
   // For one optic, stacked over DMs
   M_tilde = array(0.,[2,ndm*nmod_dm,nmod_opt]);
   for (i=1;i<=ndm;i++) {
     M_tilde(1+(i-1)*nmod_dm:i*nmod_dm, ) = proj_modes_from_to(modes, ratiov(i), nmod_dm, nmod_opt);
   }
-  if (debug>100) { tv,M_tilde; pltitle,escapechar("M\_tilde"); pause,500; }
+  if (debug>100) { tv,M_tilde; pltitle,escapechar("M_tilde"); hitReturn; }
   // Solve
   ev = SVdec(G_tilde,u,vt);
   evi = 1./ev;
   w = where(ev<max(ev/cond));
   if (nof(w)) evi(w) = 0.;
   G_tilde_inv = (transpose(vt)(,+)*(diag(evi))(+,))(,+)*transpose(u)(+,);
+  // with regul
+  if (debug) write,format="G_TILDE_INV WITH REGULARIZATION=%.f RIGHT NOW!\n",1./cond;
+  G_tilde_inv = LUsolve(G_tilde+unit(ndm*nmod_dm)/cond);
   P_joint = G_tilde_inv(,+) * M_tilde(+,);
-  if (debug>100) { tv,P_joint; pltitle,escapechar("P_joint"); pause,500; }
+  if (debug>100) { tv,P_joint; pltitle,escapechar("P_joint"); hitReturn; }
   // Apply: c_dm_stacked = P_joint(,+) * c_opt(+)
   //
   // CHECKS
   if (debug>90) {
-    if (ndm!=2) error,"Check only coded for 2 DMs";
+    if (ndm!=2) {
+      write,"Check only coded for 2 DMs";
+      return P_joint
+    }
     dim = 64;
     mod_opt = generate_modes(modes, nmod_opt, dim, dim, pupil);
     pupil_opt = pupil;
@@ -186,10 +202,24 @@ func get_def(pd,noptic)
 func get_coeff(pd,noptic)
 {
   nz12 = (*pd.nmod)(cum); nz1 = (nz12+1)(1:-1); nz2 = nz12(2:);
-  return (*pd.coeffs)(,,nz1(noptic):nz2(noptic));
+  return (*pd.coeffs)(nz1(noptic):nz2(noptic));
 }
 
-func project_to_dms(pd,mircube)
+func add_to_coeff(c,pd,noptic)
+{
+  nz12 = (*pd.nmod)(cum); nz1 = (nz12+1)(1:-1); nz2 = nz12(2:);
+  (*pd.coeffs)(nz1(noptic):nz2(noptic)) += c;
+  return pd;
+}
+
+func zero_coeff(pd,noptic)
+{
+  nz12 = (*pd.nmod)(cum); nz1 = (nz12+1)(1:-1); nz2 = nz12(2:);
+  (*pd.coeffs)(nz1(noptic):nz2(noptic)) *= 0;
+  return pd;
+}
+
+func project_to_dms(pd,cond=)
 /* DOCUMENT project_to_dms()
  * project_to_dms(): we have mircube, for each non "active" optics OPT:
  * project_to_dms(): compute projection matrices
@@ -200,17 +230,18 @@ func project_to_dms(pd,mircube)
  */
 {
   // before starting:
+  nopt = nof(*pd.alt);
   active = *pd.active;
   passive = 1-active;
   wpassive = where(passive==1); npassive = nof(wpassive);
   if (npassive==0) {
-    write,format="No \"passive\" optics, no projection to do."
+    write,format="%s\n","No \"passive\" optics, no projection to do."
     return mircube;
   }
   wactive = where(active==1); nactive = nof(wactive);
   // write,npassive,nactive;
   if (nactive==0) {
-    write,format="No \"active\" optics, nothing to project on."
+    write,format="%s\n","No \"active\" optics, nothing to project on."
     return mircube;
   }
   // precomputations:
@@ -226,37 +257,59 @@ func project_to_dms(pd,mircube)
   // write,nmod_dm;
   // write,alt_active;
   // Loop on passive optics. Each in turn will be projected to the active DMs
-  for (nopt=1;nopt<=npassive;nopt++) {
-    ipass = wpassive(nopt);
+  for (no=1;no<=npassive;no++) {
+    ipass = wpassive(no);
     nmod_opt = (*pd.nmod)(ipass);
     // calculation of patch ratios via altitude difference and kernel:
     alt_pass = (*pd.alt)(ipass);
     delta_alt = abs(alt_active-alt_pass);
-    kernel_m = 2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*delta_alt;
-    kernel_pix = kernel_m/psize;
+    // kernel_m = 2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*delta_alt;
+    // kernel_pix = kernel_m/psize;
     patch_diam = pd.pupd+2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*delta_alt/psize;
     ratiov = patch_diam/pd.pupd;
+    // error;
     patch_passive = (*pd.patch_diam)(ipass);
     // patch_passive = pd.pupd+2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6*(*pd.alt)(ipass)/psize;
-    // write,ipass,alt_pass;
+    // write,*pd.alt; patch_diam; ipass;alt_pass;
     // write,delta_alt,patch_diam,ratiov;
     // in the calculation of the projector, we compute DM to DM projection too.
     // thus it requires the DMs to be sorted so that the ratiov is in increasing order
-    order_active = sort(ratiov);
-    ratiov = ratiov(order_active);
-/*    write,format="%s\n","Computing projectors passive -> active";
-    P = compute_dms_projector(usemodes,ratiov,nmod_opt,nmod_dm,cond=100);
+    // order_active = sort(ratiov);
+    // ratiov = ratiov(order_active);
+    if (debug>10) write,format="%s\n","Computing projectors passive -> active";
+    P = compute_dms_projector(usemodes,ratiov,nmod_opt,nmod_dm,cond=cond);
+    c = get_coeff(pd,ipass);
+    cdm = P(,+)*c(+);
+    for (na=1;na<=nactive;na++) {
+      pd = add_to_coeff(cdm(1+(na-1)*nmod_dm:na*nmod_dm),pd,wactive(na));
+    }
+    pd = zero_coeff(pd,ipass);
     // now fit the current passive optics to get mode coefficients:
     // we already have the coefficients. They are in pd.coefs.
     // compute projector phase -> modes
-    mod = generate_modes(usemodes, nmod_opt, pd.size, patch_passive, pupil);
-    wpup = where(pupil);
-    modlin = mod(*,)(wpup,);
-    mtm = modlin(+,)*modlin(+,);
-    proj = LUsolve(mtm)(+,)*modlin(,+);
-    phalin = phase(wpup);
-    c = proj(,+)*phalin(+);
-    error;
-*/
+    // mod = generate_modes(usemodes, nmod_opt, pd.size, patch_passive, pupil);
+    // wpup = where(pupil);
+    // modlin = mod(*,)(wpup,);
+    // mtm = modlin(+,)*modlin(+,);
+    // proj = LUsolve(mtm)(+,)*modlin(,+);
+    // phalin = phase(wpup);
+    // c = proj(,+)*phalin(+);
+    // error;
   }
+  // update resulting mircube:
+  window,3; fma;
+  plh,(*pd.coeffs),color="red";
+  window,2;
+  for (no=1;no<=nopt;no++) {
+    def = get_def(pd,no);
+    coef = get_coeff(pd,no);
+    // write,no,coef;
+    (*pd.mircube)(,,no) = def(,,+)*coef(+);
+    plsys,no*3-1;
+    pli,(*pd.mircube)(,,no)*(*pd.pupil)(,,no);
+    plsys,no*3; pli,array(0.,[2,64,64]);
+  }
+  redraw;
+  return pd;
 }
+

@@ -102,7 +102,8 @@ func init_defs(&pd,tiptilt=)
   pd._n2 = _p2+2;
 
   // Init def, mode maps for all optics
-  def	= array(float,[3,pd.size,pd.size,(*pd.nmod)(sum)]);
+  def = array(float,[3,pd.size,pd.size,(*pd.nmod)(sum)]);
+  allpup = array(float,[3,pd.size,pd.size,nopt]);
   nz12 = (*pd.nmod)(cum);
   nz1 = (nz12+1)(1:-1);
   nz2 = nz12(2:);
@@ -122,6 +123,7 @@ func init_defs(&pd,tiptilt=)
     if (usemodes=="kl") defdm *= 4;
     wout = where(pupil==0);
     defdm(*,)(wout,) = 1e6;
+    allpup(,,k) = pupil;
     // this returns tip,tilt,focus, etc
     // normalise:
     radeg = array(0.,(*pd.nmod)(k));
@@ -132,6 +134,7 @@ func init_defs(&pd,tiptilt=)
   }
 
   pd.def = &def;
+  pd.pupil = &allpup;
 
   // Init dmgsXYposcub : will be needed by get_2d_phase_from_cube
   xref = indgen(pd._n)-(pd._n+1)/2.;
@@ -286,7 +289,7 @@ func init_perturbation(&pd,&coeff,&cmin,&cmax)
 func init_images(&pd,config,&object,&start_strehl)
 {
   res = [];
-  write,format="%s\n","Computing initial images";
+  if (debug) write,format="%s\n","Computing initial images";
   for (i=1;i<=nfoc;i++) {
     // coeff(1) = deltafoc(i);
     // write,config.roti(i),rotv(,config.roti(i));

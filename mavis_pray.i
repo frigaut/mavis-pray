@@ -68,7 +68,7 @@ rseed=,verbose=,noinc=,modes=)
   if (geometry==[]) error,"geometry undefined (see config file mavis_pray_conf.i)";
   if (fovshape==[]) error,"fovshape undefined (see config file mavis_pray_conf.i)";
   if (maxiter==[])  maxiter = 100;
-  if (verbose==[])  verbose = 0;
+  if (verbose==[])  verbose = 1;
   if (deltafoc==[]) deltafoc = [-1.,0.,1.];
   if (!flux)        flux = 1000.;
   if (!ngrid)       ngrid = 4;
@@ -80,7 +80,7 @@ rseed=,verbose=,noinc=,modes=)
   if (nof(fit)!=nof(alt)) error,"sizeof(fit) != sizeof(alt)";
 
   if (rseed!=[]) random_seed,rseed;
-  if (debug) tic;
+  tic;
 
   nopt = nof(alt);      // number of optics in train
   nfoc = nof(deltafoc); // number of extra focal distance in config
@@ -95,7 +95,7 @@ rseed=,verbose=,noinc=,modes=)
   //***********************
   // windows initialisation
   //***********************
-  if (debug) write,format="T=%.3fs -> initialising %s\n",tac(),"windows";
+  if (verbose) write,format="T=%.3fs -> \033[32minitialising %s\033[0m\n",tac(),"windows";
   status = init_windows();
 
   //**********************
@@ -106,7 +106,7 @@ rseed=,verbose=,noinc=,modes=)
   // the idea is that we do not modify the other functions going through all
   // extra-focal distances, we just will apply for each EFD the rotation of the
   // system that applies (package initially developed w/o rotation feature)
-  if (debug) write,format="T=%.3fs -> initialising %s\n",tac(),"config";
+  if (verbose) write,format="T=%.3fs -> \033[32minitialising %s\033[0m\n",tac(),"config";
   status = init_config(config);
 
   deltafoc_orig = deltafoc; // save original
@@ -119,7 +119,7 @@ rseed=,verbose=,noinc=,modes=)
   variance = (ron?ron^2:0.0001);   // noise variance (must be strickly positive in pray)
 
   // configuration printout
-  if (debug) write,format="T=%.3fs -> configuration printout\n",tac();
+  if (verbose) write,format="T=%.3fs -> \033[32mconfiguration printout\033[0m\n",tac();
   status = configuration_printout();
 
   // define and fill pray data structure
@@ -128,17 +128,18 @@ rseed=,verbose=,noinc=,modes=)
   pray_data.cobs    = cobs;
   pray_data.pupd    = pupd;
   pray_data.size    = size;
+  pray_data.ngrid    = ngrid;
   pray_data.centre  = centre;
   pray_data.nmod    = &nmod;
   pray_data.alt     = &alt;
   pray_data.active  = &active;
   pray_data.patch_diam = &(alt*0.);
 
-  if (debug) write,format="T=%.3fs -> initialising %s\n",tac(),"image centring";
+  if (verbose) write,format="T=%.3fs -> \033[32minitialising %s\033[0m\n",tac(),"image centring";
   status = init_image_centring(pray_data);
 
   // target positions
-  if (debug) write,format="T=%.3fs -> initialising %s\n",tac(),"target positions";
+  if (verbose) write,format="T=%.3fs -> \033[32minitialising %s\033[0m\n",tac(),"target positions";
   status = init_target_positions(geometry,fullfield,ngrid,gridpad,xpos,ypos);
   pray_data.xpos = &xpos; pray_data.ypos = &ypos;
   ntarget = nof(xpos);
@@ -147,11 +148,11 @@ rseed=,verbose=,noinc=,modes=)
   pray_data.ipupil = &float(make_pupil(size,pupd,xc=centre,yc=centre,cobs=cobs));
 
   // init defs, etc used by pray, fills pray_data
-  if (debug) write,format="T=%.3fs -> initialising %s\n",tac(),"defs";
+  if (verbose) write,format="T=%.3fs -> \033[32minitialising %s\033[0m\n",tac(),"defs";
   status = init_defs(pray_data);
 
   // init masks (valid phase points at each optics)
-  if (debug) write,format="T=%.3fs -> initialising %s\n",tac(),"masks";
+  if (verbose) write,format="T=%.3fs -> \033[32minitialising %s\033[0m\n",tac(),"masks";
   status = init_masks(pray_data);
 
   // Airy pattern for Strehl estimation.
@@ -159,24 +160,25 @@ rseed=,verbose=,noinc=,modes=)
   peak_airy = max(airy/sum(airy));
 
   // create initial perturbation (coef/screens, PSFs)
-  if (debug) write,format="T=%.3fs -> initialising %s\n",tac(),"perturbations";
+  if (verbose) write,format="T=%.3fs -> \033[32minitialising %s\033[0m\n",tac(),"perturbations";
   status = init_perturbation(pray_data,coeff,cmin,cmax);
 
   // ok first let's do an estimate of Strehl for the deltafoc=0 and scale the
   // phase screens or coefficients from there:
   // (<- FIXME, doesn't work for coeff)
   if (strehl_normalise) {
-    if (debug) write,format="T=%.3fs -> initialising %s\n",tac(),"strehl normalisation";
-    write,format="Normalising Original Strehl to %.1f%% (%d iterations)\n",100*strehl_target,strehl_normalise;
+    if (verbose) write,format="T=%.3fs -> \033[32mStrehl normalisation to %.1f%% (%d iterations)\033[0m\n",tac(),100*strehl_target,strehl_normalise;
     for (i=1;i<=strehl_normalise;i++) { // iterative, this works.
       status = strehl_normalisation(pray_data,coeff,config,rotv,peak_airy);
     }
   }
 
-  if (debug) write,format="T=%.3fs -> \033[32mGetting high order residuals\033[0m\n",tac();
-  status = get_high_order_residuals(pray_data,config);
+  if (skip_high_order!=1) {
+    if (verbose) write,format="T=%.3fs -> \033[32mGetting high order residuals\033[0m\n",tac();
+    status = get_high_order_residuals(pray_data,config);    
+  }
 
-  if (debug) write,format="T=%.3fs -> initialising %s\n",tac(),"images";
+  if (verbose) write,format="T=%.3fs -> \033[32minitialising %s\033[0m\n",tac(),"images";
   strehlv = init_images(pray_data,config,object,start_strehl);
 
   if (debug&&(imask_radius_scaling!=[])) write,format="T=%.3fs -> %s\n",tac(),"Masking images to cut high frequencies";
@@ -188,7 +190,7 @@ rseed=,verbose=,noinc=,modes=)
   // Call pray, which does the minimisation (with calls to vmlmb + pray_error)
   //**************************************************************************
 
-  if (debug) write,format="T=%.3fs -> calling %s\n",tac(),"pray";
+  if (verbose) write,format="T=%.3fs -> \033[32mcalling %s\033[0m\n",tac(),"pray";
   res = pray(*pray_data.images,pray_data,deltafoc,variance,object,disp=disp,verbose=verbose,\
     threshold=threshold,nbiter=maxiter);
   pray_data.coeffs = &res;
@@ -198,13 +200,13 @@ rseed=,verbose=,noinc=,modes=)
   //***************************************
 
   // check estimation results:
-  origcube = *pray_data.truecube;
+  pray_data.origcube = &(*pray_data.truecube*1);
   // first compute mircube for 0 focus:
   compute_psfs,pray_data,0,res,amp1,amp2,nodisp=1,fromscreens=0;
   // now pray_data.mircube should contains the estimated phase at foc=0.
   // subtract estimate from original phases.
-  // The PSFs are computed from "truecube"
-  *pray_data.truecube = origcube - *pray_data.mircube;
+  // The PSFs are computed from "truecube" (when fromscreens==1)
+  *pray_data.truecube = *pray_data.origcube - *pray_data.mircube;
   psfs = compute_psfs(pray_data,0,res*0,amp1,amp2,nodisp=1,fromscreens=1);
   disp_im = build_bigim(psfs,xpos,ypos,variance*0);
 
@@ -223,8 +225,23 @@ rseed=,verbose=,noinc=,modes=)
   write,format="Strehl due to fit=0 optics only (full original rms): %.1f%%\n",st*100;
 
   if (allof(active)) {
-    write,format="%s\n","All active are set to one, no fitting to do.";
+    write,format="%s\n","All optic active flags are set to one, no fitting to do.";
     return [start_strehl,end_strehl]; // with rms, e.g. [[0.4492,0.0343104],[0.968047,0.0202398]]
+  } else {
+    end_strehl = projection_only(pray_data,proj_cond)
+    // require,"projection.i";
+    // write,format="%s\n","\033[32mProjecting passive optics shape onto DMs\033[0m";
+    // pray_data = project_to_dms(pray_data,cond=proj_cond);
+    // *pray_data.truecube = *pray_data.origcube - *pray_data.mircube;
+    // psfs = compute_psfs(pray_data,0,res*0,amp1,amp2,nodisp=1,fromscreens=1);
+    // disp_im = build_bigim(psfs,xpos,ypos,variance*0);
+    // strehlv = array(0.,ntarget);
+    // for (i=1;i<=ntarget;i++) {
+    //   strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/peak_airy;
+    // }
+    // write,format="\033[31mStrehl over FoV after compensation: avg=%.1f%%\033[0m rms=%.1f%%\n", \
+    //   100*avg(strehlv),100*strehlv(rms);
+    // end_strehl = [avg(strehlv),strehlv(rms)];
   }
 
   // now fit aberrations to actual DMs and compensate
@@ -235,7 +252,7 @@ rseed=,verbose=,noinc=,modes=)
   // project_to_dms(): fit optics with modes -> coefs
   // project_to_dms(): projects coefs onto DMs, add phase to mircube DM plans
   // project_to_dms(): zero mircube(,,OPT)
-  // *pray_data.truecube = origcube - *pray_data.mircube;
+  // *pray_data.truecube = *pray_data.origcube - *pray_data.mircube;
   // compute_psf
 
   return [start_strehl,end_strehl]; // with rms, e.g. [[0.4492,0.0343104],[0.968047,0.0202398]]
@@ -243,7 +260,49 @@ rseed=,verbose=,noinc=,modes=)
 // END OF MAVIS_PRAY
 
 
+func projection_only(pd,cond,silent=)
+{
+  require,"projection.i";
+  if (!silent) write,format="\033[32mProjecting passive optics shape onto DMs\033[0m (cond=%.3f)\n",cond;
+  // this projects and update pd with new coefficients
+  csaved = *pd.coeffs;
+  pd = project_to_dms(pd,cond=cond);
+  // same as above, this fills pd.mircube with phases at foc=0 and rot=0???
+  compute_psfs,pd,0,*pd.coeffs,amp1,amp2,nodisp=1,fromscreens=0;
+  *pd.truecube = *pd.origcube - *pd.mircube;
+  psfs = compute_psfs(pd,0,res*0,amp1,amp2,nodisp=1,fromscreens=1);
+  disp_im = build_bigim(psfs,*pd.xpos,*pd.ypos,0);
+  window,1; plsys,1; pli,disp_im; redraw;
+  *pd.coeffs = csaved;  
+  // disp_im = build_bigim(psfs,xpos,ypos,variance*0);
+  ntarget = nof(*pd.xpos);
+  strehlv = array(0.,ntarget);
+  airy = roll(abs(fft(*pd.ipupil,1))^2);
+  peak_airy = max(airy/sum(airy));
+  for (i=1;i<=ntarget;i++) {
+    strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/peak_airy;
+  }
+  write,format="\033[31mStrehl over FoV after compensation: avg=%.1f%%\033[0m rms=%.1f%%\n", \
+    100*avg(strehlv),100*strehlv(rms);
+  end_strehl = [avg(strehlv),strehlv(rms)];
+  return end_strehl;
+}
 
+func scan_cond(pd)
+{
+  ac=spanl(0.1,5,15); 
+  res=ac*0; 
+  for (i=1;i<=nof(ac);i++) {
+    write,format="conditionning number=%.3f -> ",ac(i);
+    res(i)=projection_only(pray_data,ac(i),silent=(i!=1))(1); 
+  }
+  window,4; 
+  plot,res,ac; 
+  logxy,1,0;
+  wbest = wheremax(res)
+  write,format="Best performance = %.1f%% at conditioning number = %.3f\n",res(wbest)*100,ac(wbest);
+  return ac(wbest);
+}
 
 // The following functions are mavis_pray wrappers to run it repeatedly
 // or versus some changing parameters (number of modes etc)

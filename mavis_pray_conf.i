@@ -1,12 +1,12 @@
 usemodes  = "zer";        // "dh" (recommended, works well), "kl" or "zer"
 // geometry  = "square"; // "square" or "hexagonal"
 geometry  = "hexagonal"; // "square" or "hexagonal"
-// fovshape  = "round";     // "round" if desired if not will default to square
-fovshape  = "square";     // "round" if desired if not will default to square
+fovshape  = "round";     // "round" if desired if not will default to square
+// fovshape  = "square";     // "round" if desired if not will default to square
 // initphase = "coefs";   // "coefs" or "screens"
 initphase = "screens";   // "coefs" or "screens"
 
-if (case==[]) case = 100;
+// case = 6;
 
 // parameters defined statically:
 if (case==1) {
@@ -35,6 +35,7 @@ if (case==3) {
    nmod    = [150,150];
    nm_rmsv = [30,30]*1.7; // has to be defined if initphase = "screens"
    fit     = [1,1];
+   active  = [1,0];
    rotv    = [[0.,0],[180.,0]];
 }
 
@@ -55,30 +56,44 @@ if (case==5) {
   nm_rmsv = [50,50,50,50]; // has to be defined if initphase = "screens"
   fit     = [1,1,1,1];
   active  = [0,1,1,0];
-  rotv    = [[0.,0,0,0]];
+  // rotv    = [[0.,0,0,0];
+  rotv    = [[0.,0,0,0],[180.,180,0,0]];
 }
 
-if (case==10) {
+if (case==6) {
+  // To test projection:
+  alt     = [8000.,4000.,0.,-8000];
+  nmod    = [100,100,100,100];
+  nm_rmsv = [50,50,50,50]; // has to be defined if initphase = "screens"
+  fit     = [1,1,1,1];
+  active  = [0,1,1,0];
+  // rotv    = [[0.,0,0,0];
+  rotv    = [[0.,0,0,0],[180.,180,0,0]];
+}
+
+if (case==10) { // updated collimator 6/4/26
+  alt         = [45.5,13.6,6   ,1.2 ,0. ,-1.9,-4 ,-12.4,-23.9,-29.9]*1000; // altitude of optics, length nopt
+  // nm_rmsv     = [10. ,30  ,30  ,10  ,30 ,47  ,9  ,11.0 ,6.9   ,48  ];
+  nm_rmsv     = [10. ,25  ,25  ,10  ,25 ,47  ,9  ,11.0 ,6.9   ,48  ];
+  nm=50; nmod = [nm  , 80 , 80 ,nm  , 80,nm  ,nm ,nm   ,nm    ,nm  ]; // number of modes per optics
+  fit         = [0   ,1   ,1   ,0   ,1  ,0   ,0  ,0    ,0     ,0   ];
+  active      = [0   ,1   ,1   ,0   ,1  ,0   ,0  ,0    ,0     ,0   ];
+  rotv        = [[0. ,0   ,0   ,0   ,0  ,0   ,0  ,0    ,0     ,0   ],
+                [180 ,180 ,180 ,180 ,180,180 ,180,90   ,0     ,0   ]];
+  fit       = fit*0+1;
+}
+
+if (case==100) { // full full case
+  // updated collimator 6/4/26
   //updated march 30 2026:
   alt       = [45.5,13.6,6  ,1.2,0.,-1.9,-3.3,-4.4,-8.3,-12.4,-16.5,-23.9,-29.9,-36.2]*1000; // altitude of optics, length nopt
-  nm_rmsv   = [10. ,30  ,30 ,30 ,30,47  ,6.4 ,6.4 ,6.6 ,6.6  ,6.6  ,6.9   ,48   ,5];
+  nm_rmsv   = [10. ,30  ,30 ,10 ,30,47  ,6.4 ,6.4 ,6.6 ,6.6  ,6.6  ,6.9   ,48   ,5];
   nmod      = [50,100,100,50,100,50,50,50,50,50,50,50,50,50]; // number of modes per optics
   fit       = [0,1,1,0,1,0,0,0,0,0,0,0,0,0];
   rotv      = [[0.,0,0,0,0,0,0,0,0,0,0,0,0,0],\
                [180,180,180,180,180,180,180,180,180,90,0,0,0,0]]; // rotation of optics, as many line as configs
   fit       = fit*0+1;
 
-}
-
-if (case==100) { // updated collimator 6/4/26
-  alt         = [45.5,13.6,6   ,1.2 ,0. ,-1.9,-4 ,-12.4,-23.9,-29.9]*1000; // altitude of optics, length nopt
-  nm_rmsv     = [10. ,30  ,30  ,10  ,30 ,47  ,9  ,11.0 ,6.9   ,48  ]*0.86;
-  nm=50; nmod = [nm  ,100 ,100 ,nm  ,100,nm  ,nm ,nm   ,nm    ,nm  ]; // number of modes per optics
-  fit         = [1   ,1   ,1   ,0   ,1  ,0   ,0  ,0    ,0     ,1   ];
-  active      = [0   ,1   ,1   ,0   ,1  ,0   ,0  ,0    ,0     ,0   ];
-  rotv        = [[0. ,0   ,0   ,0   ,0  ,0   ,0  ,0    ,0     ,0   ],
-                [180 ,180 ,180 ,180 ,180,180 ,180,90   ,0     ,0   ]];
-  fit         = fit*0+1;
 }
 
 // just for res=get_non_normalised_strehls()
@@ -107,7 +122,7 @@ if (case==0) {
   active(wdm) = 1;
 }
 
-w = where(fit==0); if (nof(w)) nmod(w) = 2;
+// w = where(fit==0); if (nof(w)) nmod(w) = 2;
 if (active==[]) active = fit*0+1;
 
 weight             = array(2./sqrt(nof(alt)),nof(nmod)); // mode weights (static aberrations)
@@ -121,12 +136,16 @@ gridpad            = 1.;  // padding in arcsec to validate sources
 ps_slope           = -2.5;
 zoomfactor         = 3;
 display            = 1;
-debug              = 1;
+// debug              = 1;
 strehl_target      = 0.41;
+strehl_target      = exp(-(2*pi*sqrt(sum(nm_rmsv^2))/lambda)^2);
 strehl_normalise   = 4; // number of iterations for Strehl normalisation (recommended: 2)
 // centre_init_images = 0; // centre both original images and modelled ones. DOES NOT WORK
 // centre_pray_images = 0; // centre both original images and modelled ones. DOES NOT WORK
-
+nmoddm = nmod(where(active)(1));
+proj_cond          = sqrt(nmoddm)/8.; // condition number for projection to DMs
+proj_cond;
+// proj_cond          = 2.0; // condition number for projection to DMs
 // Graphics parameters
 dpi_target       = 160; // dpi for the "large" graphic windows
 dpi_target_small = 100; // dpi for the secondary graphic windows

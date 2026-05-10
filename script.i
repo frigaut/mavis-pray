@@ -135,4 +135,43 @@ func script4(seed)
   return [mr,st];
 }
 
+func script5(void)
+{
+  require,"mavis_pray.i";
+
+  // Study perf vs conditioning number
+  nsamp = 10;
+  nbiter = 100;
+  nmov = [6,10,25,50,100,200];
+  rseedv = random(nsamp);
+
+  // nmov = [6,25,100];
+  sst = est = nmov*0.;
+  for (nmo=1;nmo<=nof(nmov);nmo++) {
+    write,format="\n\nSimulation with %d modes\n\n",nmov(nmo);
+    alls = array(0.,[3,2,2,nsamp]);
+    for (n=1;n<=nsamp;n++) {
+      include,"mavis_pray_conf.i",1;
+      w = where(fit==1);
+      nmod(w) = nmov(nmo);
+      res=mavis_pray(,8,[0,-1.5,1.5],1000,0.,,disp=1,maxiter=nbiter, \
+        rseed=rseedv(n),noinc=1);
+      alls(,,n) = res;
+    }
+    alls;
+    alls = median(alls,3);
+    alls;
+    sst(nmo) = alls(1,1); est(nmo) = alls(1,2);
+    sst; est;
+  }
+  window,1;
+  fma; limits,square=0; limits;
+  plg,est,nmov,color="red"; plp,est,nmov,symbol="o",size=0.5,color="red";
+  plg,sst,nmov; plp,sst,nmov,symbol="o",size=0.5;
+  plmargin; range,0.,1.;
+  pltitle,"End Strehl (red) vs # of fitted modes";
+  xytitles,"Number of fitted modes","Strehl",[-0.015,0.];
+}
+
 // status = script4();
+

@@ -112,6 +112,7 @@ func pray_j_data(&gradient_psf,object=,ft_object=,image=,ft_image=,psf=, \
  */
 {
   // Test on the object
+  tic,6;
   if (object!=[]) ft_object=fft(object,1);
   else if (ft_object==[]) write,format="%s\n","object and ft_object missing";
 
@@ -140,6 +141,9 @@ func pray_j_data(&gradient_psf,object=,ft_object=,image=,ft_image=,psf=, \
 
 // In the least square method :
 // gradient_psf=(1./variance)*double(fft(conj(ft_object)*ho_minus_i,1));
+  extern pray_j_data_time;
+  if (pray_j_data_time==[]) pray_j_data_time = 0.;
+  pray_j_data_time += tac(6);
 
   return 0.5 * sum((ho_minus_i)^2/variance);
 }
@@ -169,6 +173,7 @@ func grad_param_psf(grad_psf,&grad_phase,modes_array,mask,ampli_pup,ampli_foc,pu
   // in th tomographic case, modes Array contains the modes, as viewed in the pupil for
   // the specific direction ... need to use getModesInPup before
   //pupd2 = pud^2;
+  tic,5;
   size2 = nof(mask);
   size  = sqrt(size2);
 
@@ -184,6 +189,11 @@ func grad_param_psf(grad_psf,&grad_phase,modes_array,mask,ampli_pup,ampli_foc,pu
   grad_phase = roll(grad_phase,[size/2-pupd/2-2,size/2-pupd/2-2]);
 
   gradMode = modes_array(*,)(where(mask),)(+,)*grad_phase(*)(where(mask))(+);
+
+  extern grad_param_time;
+  if (grad_param_time==[]) grad_param_time = 0.;
+  grad_param_time += tac(5);
+
 
   return gradMode;
 }
@@ -229,6 +239,7 @@ func compute_psfs(&pd,xfoc,coeff,&ampli_pup,&ampli_foc,rotv=,nodisp=,fromscreens
       pli,((*pd.truecube)(,,no)-(*pd.mircube)(,,no)) * mask;
       pltitle_vp,swrite(format="Difference(%d)",no),pos=-1;
     }
+    redraw;
     pause,20;
   }
 
@@ -514,16 +525,15 @@ func pray(images,pd,deltafoc,variance,object,disp=,verbose=,threshold=,nbiter=,\
   param=minim;
 
   // tac();
-  if (verbose) {
-    write,format="Value of the criterion after %d iterations :",iter;
-    criterion_value =  pray_error(minim,grad_fin);
-    write,criterion_value;
-    if (verbose>1) {
-      write,format="Values of the Mode Coeffs after %d iterations :",iter;
-      write,minim;
-    }
-
-  }
+  // if (verbose) {
+  //   write,format="Value of the criterion after %d iterations :",iter;
+  //   criterion_value =  pray_error(minim,grad_fin);
+  //   write,criterion_value;
+  //   if (verbose>1) {
+  //     write,format="Values of the Mode Coeffs after %d iterations :",iter;
+  //     write,minim;
+  //   }
+  // }
 
   return minim; //*norm;
 }

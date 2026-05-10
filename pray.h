@@ -9,6 +9,7 @@ struct pray_struct
   pointer original_big_image;
   pointer mircube;
   pointer truecube;
+  pointer origcube;
   pointer maskcube;
   pointer truecoeffs;
   pointer coeffs;
@@ -20,6 +21,7 @@ struct pray_struct
   pointer active;
   pointer patch_diam;
   pointer ipupil;
+  pointer pupil;
   pointer dmgsxposcub;
   pointer dmgsyposcub;
   pointer deltafoc;
@@ -34,6 +36,7 @@ struct pray_struct
   float   cobs;
   long    pupd;
   long    size;
+  long    ngrid;
   long    centre;
   long    _n;
   long    _n1;

@@ -1,8 +1,8 @@
 func configuration_printout(void)
 {
-  write,format="\n%s\n","--------------------------------------------------------------------";
+  write,format="%s\n","--------------------------------------------------------------------------";
   write,format="%s\n","Pray for MAVIS (mavis_pray and pray) - System Configuration";
-  write,format="Number of optics: %d, Number of extra-focal pos.: %d, number of rotation: %d\n",nopt,nof(deltafoc),dimsof(rotv)(0);
+  write,format="Number of optics: %d, Number of extra-focal pos.: %d, number of rotation: %d\n",nopt,nof(deltafoc)/dimsof(rotv)(0),dimsof(rotv)(0);
   write,format="%s","Extra focal distances: "; deltafoc_orig;
   write,format="%s","Optics conjug. altitude: "; alt;
   write,format="%s","Optics WFE [nm]: "; nm_rmsv;
@@ -15,10 +15,11 @@ func configuration_printout(void)
   write,format="Number of sources = %d across %.0f\" FoV, %d total, %s geometry\n",ngrid,fullfield,nof(xpos),geometry;
   write,format="source flux = %.1f, RON= %g\n",flux,ron;
   write,format="Image centring: init:%s  pray:%s\n",(centre_init_images?"ON":"OFF"),(centre_pray_images?"ON":"OFF");
+  write,format="Projection to DM(s) conditionning number: %.1f\n",proj_cond;
   if (imask_radius_scaling!=[]) \
     write,format="Image mask radius = %.0f%%\n",imask_radius_scaling*100;
-  write,format="%s\n","Current random seed stored in extern last_random_seed, use as rseed to repeat current";
-  write,format="%s\n","--------------------------------------------------------------------";
+  // write,format="%s\n","Current random seed stored in extern last_random_seed, use as rseed to repeat current";
+  write,format="%s\n","--------------------------------------------------------------------------";
 }
 
 func strehl_normalisation(&pd,&coeff,config,rotv,peak_airy)
@@ -56,7 +57,7 @@ func build_bigim(data_set,xpos,ypos,variance,noeclat=)
   nlin   = long(sqrt(nim));
   stride = long(size/zoomfactor);
   // dposp  = xpos(2)-xpos(1);
-  dposp = fullfield/ngrid;
+  dposp = fullfield/pray_data.ngrid;
 
   xposp  = 1+long((xpos-min(xpos))/dposp*stride);
   yposp  = 1+long((ypos-min(ypos))/dposp*stride);
@@ -276,6 +277,7 @@ func get_non_normalised_strehls(nit)
 {
   // to init config:
   stop_after_init_images=1;
+  skip_high_order=1;
   res = mavis_pray(,8,[0,-1.5,1.5],1000,0.,,disp=1,maxiter=50);
   geometry  = "square"; // "square" or "hexagonal"
   fovshape  = "square";     // "round" if desired if not will default to square
@@ -320,7 +322,44 @@ func get_non_normalised_strehls(nit)
   // write,format="Stdev   of spatial average in the FoV=%.1f%%\n",100*allres_rms(1);
   // write,format="Stdev   of spatial stdev   in the FoV=%.1f%%\n",100*allres_rms(2);
   // return [allres_avg,allres_rms];
+  f = createb("get_non_normalised_strehls.dat");
+  save,f,allstrehl,expected_strehl,lambda,nm_rms,nm_rmsv,allstrehl_per_frame;
+  close,f;
   return allstrehl;
+}
+
+func plot_get_non_normalised_strehls(void)
+{
+  f = openb("get_non_normalised_strehls.dat");
+  restore,f,allstrehl,expected_strehl,lambda,nm_rms,nm_rmsv,allstrehl_per_frame;
+  close,f;
+  window,30,style="clean.gs",wait=1; 
+  fma; limits,square=0;
+  hy=histo2(100*allstrehl(*),hx,binsize=2.5);
+  plh,hy,hx,color=torgb(tokyonight(1)),width=3;
+  plg,[0.,max(hy)],[1,1]*100*expected_strehl,type=2;
+  pltitle_height=12;
+  xytitles,swrite(format="Strehl@%dnm",long(lambda)),"Number in bin",[-0.008,0.01];
+  pltitle_height=9;
+  pltitle,swrite(format="Strehl=%.1f%% (med=%.1f%%) +/-%.1f%%, expected=%.1f%% from RSS(WFE)=%.1fnm",\
+    100*allstrehl(*)(avg),median(100*allstrehl(*)),100*allstrehl(*)(rms),100*expected_strehl,nm_rms);
+  plmargin; range,0;
+  pngcrop,"get_non_normalised_strehls",margin=10;
+  pause,1000;
+  // cumulative distribution
+  fma;
+  pltitle_height=12;
+  hy=histo2(100*allstrehl(*),hx,binsize=1);
+  chy = hy(cum);
+  chy = chy/max(chy);
+  chx = _(hx,hx(0)+(hx(2)-hx(1)));
+  plh,chy,chx,color=torgb(tokyonight(1)),width=3;
+  plg,[0.,1.],[1,1]*100*expected_strehl,type=2;
+  plmargin; range,0,1;
+  xytitles,swrite(format="Strehl@%dnm",long(lambda)),"Number in bin",[-0.008,0.01];
+  // pltitle_height=9;
+  pltitle,swrite(format="Cumulative Strehl Distribution RSS(WFE)=%.1fnm",nm_rms);
+  pngcrop,"get_non_normalised_strehls_cum",margin=10;
 }
 
 func check_rms_to_strehl(nit,nmrms,ps_slope,remove_tt=,remove_foc=)
