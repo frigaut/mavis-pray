@@ -556,7 +556,7 @@ func myobserver(iters,evals,rejects,t,x,f,g,gpnorm,alpha,fg,extra=)
   coeff = x;
   if (window_exists(3)) window,3;
   else window,3,wait=1,dpi=long(dpi_target_small);
-  fma; limits,square=0;
+  fma; limits; limits,square=0;
   plh,coeff;
   xytitles,"Coefficient number (over all optics)","Coefficient value",[-0.015,0.];
   pltitle,"Coefficients";

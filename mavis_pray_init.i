@@ -122,7 +122,7 @@ func init_defs(&pd,tiptilt=)
     if (usemodes=="dh") defdm *= 5;
     if (usemodes=="kl") defdm *= 4;
     wout = where(pupil==0);
-    defdm(*,)(wout,) = 1e6;
+    defdm(*,)(wout,) = 0; //1e6;
     allpup(,,k) = pupil;
     // this returns tip,tilt,focus, etc
     // normalise:

@@ -1,12 +1,12 @@
 usemodes  = "zer";        // "dh" (recommended, works well), "kl" or "zer"
 // geometry  = "square"; // "square" or "hexagonal"
 geometry  = "hexagonal"; // "square" or "hexagonal"
-fovshape  = "round";     // "round" if desired if not will default to square
-// fovshape  = "square";     // "round" if desired if not will default to square
+// fovshape  = "round";     // "round" if desired if not will default to square
+fovshape  = "square";     // "round" if desired if not will default to square
 // initphase = "coefs";   // "coefs" or "screens"
 initphase = "screens";   // "coefs" or "screens"
 
-// case = 6;
+if (case==[]) error,"you have to set the variable 'case' (see mavis_pray_conf.i)";
 
 // parameters defined statically:
 if (case==1) {
@@ -75,13 +75,26 @@ if (case==10) { // updated collimator 6/4/26
   alt         = [45.5,13.6,6   ,1.2 ,0. ,-1.9,-4 ,-12.4,-23.9,-29.9]*1000; // altitude of optics, length nopt
   // nm_rmsv     = [10. ,30  ,30  ,10  ,30 ,47  ,9  ,11.0 ,6.9   ,48  ];
   nm_rmsv     = [10. ,25  ,25  ,10  ,25 ,47  ,9  ,11.0 ,6.9   ,48  ];
-  nm=50; nmod = [nm  , 80 , 80 ,nm  , 80,nm  ,nm ,nm   ,nm    ,nm  ]; // number of modes per optics
+  nm=100; nmod = [nm  , 100 , 100 ,nm  , 100,nm  ,nm ,nm   ,nm    ,nm  ]; // number of modes per optics
   fit         = [0   ,1   ,1   ,0   ,1  ,0   ,0  ,0    ,0     ,0   ];
   active      = [0   ,1   ,1   ,0   ,1  ,0   ,0  ,0    ,0     ,0   ];
   rotv        = [[0. ,0   ,0   ,0   ,0  ,0   ,0  ,0    ,0     ,0   ],
                 [180 ,180 ,180 ,180 ,180,180 ,180,90   ,0     ,0   ]];
   fit       = fit*0+1;
 }
+
+if (case==11) { // updated collimator 6/4/26
+  alt         = [15.5,13.6,6   ,1.2 ,0. ,-1.9,-4 ,-6.4,-9.9,-23.9]*1000; // altitude of optics, length nopt
+  // nm_rmsv     = [10. ,30  ,30  ,10  ,30 ,47  ,9  ,11.0 ,6.9   ,48  ];
+  nm_rmsv     = [10. ,25  ,25  ,10  ,25 ,47  ,9  ,11.0 ,6.9   ,48  ];
+  nm=100; nmod = [nm  , 100 , 100 ,nm  , 100,nm  ,nm ,nm   ,nm    ,nm  ]; // number of modes per optics
+  fit         = [0   ,1   ,1   ,0   ,1  ,0   ,0  ,0    ,0     ,0   ];
+  active      = [0   ,1   ,1   ,0   ,1  ,0   ,0  ,0    ,0     ,0   ];
+  rotv        = [[0. ,0   ,0   ,0   ,0  ,0   ,0  ,0    ,0     ,0   ],
+                [180 ,180 ,180 ,180 ,180,180 ,180,90   ,0     ,0   ]];
+  fit       = fit*0+1;
+}
+
 
 if (case==100) { // full full case
   // updated collimator 6/4/26
@@ -139,7 +152,7 @@ display            = 1;
 // debug              = 1;
 strehl_target      = 0.41;
 strehl_target      = exp(-(2*pi*sqrt(sum(nm_rmsv^2))/lambda)^2);
-strehl_normalise   = 4; // number of iterations for Strehl normalisation (recommended: 2)
+strehl_normalise   = 0; // number of iterations for Strehl normalisation (recommended: 2)
 // centre_init_images = 0; // centre both original images and modelled ones. DOES NOT WORK
 // centre_pray_images = 0; // centre both original images and modelled ones. DOES NOT WORK
 nmoddm = nmod(where(active)(1));

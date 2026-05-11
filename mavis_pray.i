@@ -54,7 +54,7 @@ system,"echo 'random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1
 
 
 func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
-rseed=,verbose=,noinc=,modes=)
+rseed=,verbose=,noinc=,modes=,skip_proj=)
 {
   extern pray_data;
   extern last_random_seed; // in case, to be able to repeat this random realisation
@@ -228,20 +228,28 @@ rseed=,verbose=,noinc=,modes=)
     write,format="%s\n","All optic active flags are set to one, no fitting to do.";
     return [start_strehl,end_strehl]; // with rms, e.g. [[0.4492,0.0343104],[0.968047,0.0202398]]
   } else {
-    end_strehl = projection_only(pray_data,proj_cond)
-    // require,"projection.i";
-    // write,format="%s\n","\033[32mProjecting passive optics shape onto DMs\033[0m";
-    // pray_data = project_to_dms(pray_data,cond=proj_cond);
-    // *pray_data.truecube = *pray_data.origcube - *pray_data.mircube;
-    // psfs = compute_psfs(pray_data,0,res*0,amp1,amp2,nodisp=1,fromscreens=1);
-    // disp_im = build_bigim(psfs,xpos,ypos,variance*0);
-    // strehlv = array(0.,ntarget);
-    // for (i=1;i<=ntarget;i++) {
-    //   strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/peak_airy;
-    // }
-    // write,format="\033[31mStrehl over FoV after compensation: avg=%.1f%%\033[0m rms=%.1f%%\n", \
-    //   100*avg(strehlv),100*strehlv(rms);
-    // end_strehl = [avg(strehlv),strehlv(rms)];
+    if (!skip_proj) end_strehl = simple_projection_only(pray_data);
+    // end_strehl = projection_only(pray_data,proj_cond);
+    // projection done separately with projection_only()
+  //   require,"projection.i";
+  //   write,format="%s\n","\033[32mProjecting passive optics shape onto DMs\033[0m";
+  //   compute_psfs,pray_data,0,res,amp1,amp2,nodisp=1,fromscreens=0;
+  //   // now pray_data.mircube should contains the estimated phase at foc=0.
+  //   // subtract estimate from original phases.
+  //   // The PSFs are computed from "truecube" (when fromscreens==1)
+  //   pray_data = project_to_dms_simple(pray_data);
+  //   // pray_data = project_to_dms(pray_data,cond=proj_cond);
+  //   *pray_data.truecube = *pray_data.origcube - *pray_data.mircube;
+  //   psfs = compute_psfs(pray_data,0,res*0,amp1,amp2,nodisp=1,fromscreens=1);
+  //   disp_im = build_bigim(psfs,xpos,ypos,variance*0);
+  //   window,1; plsys,1; pli,disp_im; pltitle_vp,"Final"; redraw;
+  //   strehlv = array(0.,ntarget);
+  //   for (i=1;i<=ntarget;i++) {
+  //     strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/peak_airy;
+  //   }
+  //   write,format="\033[31mStrehl over FoV after compensation: avg=%.1f%%\033[0m rms=%.1f%%\n", \
+  //     100*avg(strehlv),100*strehlv(rms);
+  //   end_strehl = [avg(strehlv),strehlv(rms)];
   }
 
   // now fit aberrations to actual DMs and compensate
@@ -260,6 +268,34 @@ rseed=,verbose=,noinc=,modes=)
 // END OF MAVIS_PRAY
 
 
+func simple_projection_only(pd)
+{
+  require,"projection.i";
+  write,format="%s\n","\033[32mProjecting passive optics shape onto DMs\033[0m";
+  compute_psfs,pd,0,*pd.coeffs,amp1,amp2,nodisp=1,fromscreens=0;
+  // now pd.mircube should contains the estimated phase at foc=0.
+  // subtract estimate from original phases.
+  // The PSFs are computed from "truecube" (when fromscreens==1)
+  // pd = project_to_dms_simple(pd);
+  pd = simple_project(pd);
+  *pd.truecube = *pd.origcube - *pd.mircube;
+  psfs = compute_psfs(pd,0,,amp1,amp2,nodisp=1,fromscreens=1);
+  disp_im = build_bigim(psfs,*pd.xpos,*pd.ypos,0);
+  window,1; plsys,1; pli,disp_im; pltitle_vp,"Final"; redraw;
+  ntarget = nof(*pd.xpos);
+  strehlv = array(0.,ntarget);
+  airy = roll(abs(fft(*pd.ipupil,1))^2);
+  peak_airy = max(airy/sum(airy));
+  for (i=1;i<=ntarget;i++) {
+    strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/peak_airy;
+  }
+  write,format="\033[31mStrehl over FoV after DM projection: avg=%.1f%%\033[0m rms=%.1f%%\n", \
+  100*avg(strehlv),100*strehlv(rms);
+  end_strehl = [avg(strehlv),strehlv(rms)];
+  return end_strehl;
+}
+
+/*
 func projection_only(pd,cond,silent=)
 {
   require,"projection.i";
@@ -270,7 +306,7 @@ func projection_only(pd,cond,silent=)
   // same as above, this fills pd.mircube with phases at foc=0 and rot=0???
   compute_psfs,pd,0,*pd.coeffs,amp1,amp2,nodisp=1,fromscreens=0;
   *pd.truecube = *pd.origcube - *pd.mircube;
-  psfs = compute_psfs(pd,0,res*0,amp1,amp2,nodisp=1,fromscreens=1);
+  psfs = compute_psfs(pd,0,,amp1,amp2,nodisp=1,fromscreens=1);
   disp_im = build_bigim(psfs,*pd.xpos,*pd.ypos,0);
   window,1; plsys,1; pli,disp_im; redraw;
   *pd.coeffs = csaved;  
@@ -282,7 +318,7 @@ func projection_only(pd,cond,silent=)
   for (i=1;i<=ntarget;i++) {
     strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/peak_airy;
   }
-  write,format="\033[31mStrehl over FoV after compensation: avg=%.1f%%\033[0m rms=%.1f%%\n", \
+  write,format="\033[31mStrehl over FoV after DM projection: avg=%.1f%%\033[0m rms=%.1f%%\n", \
     100*avg(strehlv),100*strehlv(rms);
   end_strehl = [avg(strehlv),strehlv(rms)];
   return end_strehl;
@@ -290,11 +326,11 @@ func projection_only(pd,cond,silent=)
 
 func scan_cond(pd)
 {
-  ac=spanl(0.1,5,15); 
+  ac=spanl(0.3,6,10); 
   res=ac*0; 
   for (i=1;i<=nof(ac);i++) {
     write,format="conditionning number=%.3f -> ",ac(i);
-    res(i)=projection_only(pray_data,ac(i),silent=(i!=1))(1); 
+    res(i)=projection_only(pd,ac(i),silent=(i!=1))(1); 
   }
   window,4; 
   plot,res,ac; 
@@ -303,6 +339,7 @@ func scan_cond(pd)
   write,format="Best performance = %.1f%% at conditioning number = %.3f\n",res(wbest)*100,ac(wbest);
   return ac(wbest);
 }
+*/
 
 // The following functions are mavis_pray wrappers to run it repeatedly
 // or versus some changing parameters (number of modes etc)
@@ -312,18 +349,28 @@ func perfvsnit(nitv,ngrid,deltafoc,flux,ron,rseed=,disp=)
   stvsnit = nitv*0.+1;
   st_start_vsnit = st_start_spatial_rms_vsnit = nitv*0.+1;
   st_end_vsnit = st_end_spatial_rms_vsnit = nitv*0.+1;
+  st_proj_vsnit = st_proj_spatial_rms_vsnit = nitv*0.+1;
   for (nn=2;nn<=nof(nitv);nn++) {
-    strehls = mavis_pray(,ngrid,deltafoc,flux,ron,init_strehlv,disp=disp,maxiter=nitv(nn),rseed=rseed);
+    strehls = mavis_pray(,ngrid,deltafoc,flux,ron,init_strehlv,disp=disp,maxiter=nitv(nn),rseed=rseed,skip_proj=1);
     st_start_vsnit(nn) = strehls(1,1);
     st_start_spatial_rms_vsnit(nn) = strehls(2,1);
     st_end_vsnit(nn) = strehls(1,2);
     st_end_spatial_rms_vsnit(nn) = strehls(2,2);
+    // best_cond = scan_cond(pray_data);
+    // sproj = projection_only(pray_data,best_cond);
+    sproj = simple_projection_only(pray_data);
+    st_proj_vsnit(nn) = sproj(1);
+    st_proj_spatial_rms_vsnit(nn) = sproj(2);
+    st_end_vsnit; st_end_spatial_rms_vsnit;
+    st_proj_vsnit;st_proj_spatial_rms_vsnit;
   }
   // fill in the uncorrected case
   st_start_vsnit(1) = strehls(1,1);
   st_start_spatial_rms_vsnit(1) = strehls(2,1);
   st_end_vsnit(1) = strehls(1,1);
   st_end_spatial_rms_vsnit(1) = strehls(2,1);
+  st_proj_vsnit(1) = strehls(1,1);
+  st_proj_spatial_rms_vsnit(1) = strehls(2,1);
 
   cw = current_window();
   if (window_exists(5)) window,5;
@@ -339,18 +386,20 @@ func perfvsnit(nitv,ngrid,deltafoc,flux,ron,rseed=,disp=)
       ngrid,ngrid,print(deltafoc)(1),flux*1.,ron*1.);
   window,cw,wait=1;
   pause,50;
-  return [nitv,errnm,st_start_vsnit,st_start_spatial_rms_vsnit,st_end_vsnit,st_end_spatial_rms_vsnit];
+  return [nitv,errnm,st_start_vsnit,st_start_spatial_rms_vsnit,st_end_vsnit,\
+    st_end_spatial_rms_vsnit,st_proj_vsnit,st_proj_spatial_rms_vsnit];
 }
 
 func do_stats_vs_nit(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed,disp=)
 {
-  allststart = allstend = array(_(0.,nitv*0.),nsamp);
+  allststart = allstend = allstproj = array(_(0.,nitv*0.),nsamp);
   random_seed,rseed;
   for (k=1;k<=nsamp;k++) {
     write,format="\n\033[32mdo_stats_vs_nit() iteration: %d/%d\033[0m\n",k,nsamp;
     res = perfvsnit(nitv,ngrid,deltafoc,flux,ron,rseed=random(),disp=disp);
     allststart(,k) = res(,3); // start strehls vs nit
     allstend(,k) = res(,5); // end strehls vs nit
+    allstproj(,k) = res(,7); // end strehls vs nit
     nitv2 = res(,1); // nit vector, including 0
   }
   if (window_exists(3)) window,3;
@@ -358,19 +407,26 @@ func do_stats_vs_nit(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed,disp=)
   fma;
   w = where((abs(allstend(0,)-median(allstend(0,)))<3*allstend(0,rms)));
   write,format="Kept %d out of %d samples\n",nof(w),nsamp;
-  ststartavg = allststart(,w)(,avg); stendavg = allstend(,w)(,avg);
-  ststartrms = allststart(,w)(,rms); stendrms = allstend(,w)(,rms);
+  ststartavg = allststart(,w)(,avg); stendavg = allstend(,w)(,avg); stprojavg = allstproj(,w)(,avg);
+  ststartrms = allststart(,w)(,rms); stendrms = allstend(,w)(,rms); stprojrms = allstproj(,w)(,rms);
   // write,format="Final Strehl [nm] = %.2fnm +/- %.2f\n",erravg(0),errrms(0);
   fma;
+
   plg,ststartavg,nitv2;
   plp,ststartavg,nitv2,symbol="o",size=0.5;
   pleb,ststartavg,nitv2,dy=ststartrms;
-  plg,stendavg,nitv2,color="red";
-  plp,stendavg,nitv2,symbol="o",size=0.5,color="red";
-  pleb,stendavg,nitv2,dy=stendrms,color="red";
+
+  plg,stendavg,nitv2,color=torgb(tokyonight(1));
+  plp,stendavg,nitv2,symbol="o",size=0.5,color=torgb(tokyonight(1));
+  pleb,stendavg,nitv2,dy=stendrms,color=torgb(tokyonight(1));
+
+  plg,stprojavg,nitv2,color=torgb(tokyonight(2));
+  plp,stprojavg,nitv2,symbol="o",size=0.5,color=torgb(tokyonight(2));
+  pleb,stprojavg,nitv2,dy=stprojrms,color=torgb(tokyonight(2));
+
   plmargin; range,0,1;
   xytitles,"Number of iterations",swrite(format="Strehl @ %.0fnm",float(lambda)),[-0.015,0.];
-  pltitle,"End Strehl (red) vs # of iterations";
+  pltitle,"End Strehl (all optics: red, DMs: green) vs # of iterations";
   // pltitle,swrite(format="Pray: %dx%d grid, efd=%s, flux=%.0f, RON=%g",\
   //   ngrid,ngrid,print(deltafoc)(1),flux*1.,ron*1.);
 }
