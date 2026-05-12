@@ -33,16 +33,13 @@ func strehl_normalisation(&pd,&coeff,config,rotv,peak_airy)
       rotv=rotv(,config.roti(w0(i))),nodisp=1,fromscreens=(initphase=="screens"));
   }
   ima = ima/ima(*,)(sum,)(-,-,); // normalisation
-  strehlavg = avg(ima(*,)(max,)/peak_airy);
-  // fact = sqrt(log(strehl_target)/log(strehlavg));
+  strehlv = ima(*,)(max,)/peak_airy;
+  strehlavg = avg(strehlv);
   fact = (log(strehl_target)/log(strehlavg))^0.5;
   if (debug) write,format="Current Strehl average = %.1f%%, scaling by %f\n",100*strehlavg,fact;
   *pd.mircube *= fact;
   *pd.truecube *= fact;
   *pd.truecoeffs *= fact;
-  // *pd._def_pup *= fact; << this is definitely not necessary, as def not affected.
-  // coeff *= fact; << this was creating the issue I fought with.
-  // write,format="%s","\033[31mBEWARE, STREHL NORMALISATION IS BROKEN SOMEHOW (AFFECT RESULTS)\033[0m\n";
   return 0;
 }
 

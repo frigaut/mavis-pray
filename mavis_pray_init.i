@@ -312,7 +312,7 @@ func init_images(&pd,config,&object,&start_strehl)
       if (centre_init_images) images(,,i,n) = centre_image(images(,,i,n),pray_data);
       if (deltafoc(n)==0) {
         strehlv(i) = max(images(,,i,n)/sum(images(,,i,n)))/peak_airy;
-        strehlv_at_focus = strehlv;
+        strehlv_at_focus = strehlv; //FIXME overall focus=0 not insured
       }
     }
     if (deltafoc(n)==0) {

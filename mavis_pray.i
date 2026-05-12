@@ -49,12 +49,42 @@ require,"mavis_pray_init.i";
 require,"mavis_pray_lib.i";
 require,"pray.i";
 
-write,format="\n%s\n%s\n","Try running","random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"dh\")";
+write,format="\n%s\n%s\n","Try running","random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"zer\")";
 system,"echo 'random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"dh\")' | wl-copy";
 
 
 func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
 rseed=,verbose=,noinc=,modes=,skip_proj=)
+/* DOCUMENT func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
+rseed=,verbose=,noinc=,modes=,skip_proj=)
+ * mavis_pray simulates the MAVIS NCPA process. It does:
+ * initliasation of the optics surface for all optics
+ * computes the images
+ * inits a number of system parameters
+ * call pray() which does the minimisation
+ * project on the active optics
+ * output quality metrics, strehl avg , strehl rms
+ * Configuration is read from executing mavis_pray_conf.i
+ * PARAMETERS:
+ * coeff_offsets: possible offsets for coefficients (rarely used, historical)
+ * ngrid: side number of images in the output focal plane (e.g. 4-8)
+ * deltafoc: extra focal distances, e.g. [0.,-1.5,1.5]. They don't have to be 
+ *   in increasing order. First one is the one for which images are displayed, 
+ *   so usually 0 to get in focus images.
+ * flux: flua per individual image, in ADU (e.g. 100000)
+ * ron: read out noise, in ADU
+ * strehlv: output strehl (unused)
+ * disp= set to display stuff
+ * maxiter= maximum number of iterations in the minimisatioin process
+ * rseed= random seed. can be useful to repeat similar runs. If not specified,
+ *   will take a random seed
+ * verbose= write out more stuff
+ * noinc= if set, mavis_pray_conf.i will not be included. Can be useful to 
+ *   call again mavis_pray() after an initial call to change some parameters
+ * modes= "zer" of "dh". Note that KL is broken at this time
+ * skip_proj= skip the projection step, can be executed later using 
+ *   simple_projection_only(pray_data)
+*/
 {
   extern pray_data;
   extern last_random_seed; // in case, to be able to repeat this random realisation
@@ -179,7 +209,7 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
   }
 
   if (verbose) write,format="T=%.3fs -> \033[32minitialising %s\033[0m\n",tac(),"images";
-  strehlv = init_images(pray_data,config,object,start_strehl);
+  strehlv_init = init_images(pray_data,config,object,start_strehl);
 
   if (debug&&(imask_radius_scaling!=[])) write,format="T=%.3fs -> %s\n",tac(),"Masking images to cut high frequencies";
   status = mask_images(pray_data,imask_radius_scaling);
@@ -211,9 +241,10 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
   disp_im = build_bigim(psfs,xpos,ypos,variance*0);
 
   strehlv = array(0.,ntarget);
-  for (i=1;i<=ntarget;i++) {
+  for (i=1;i<=ntarget;i++) { //FIXME this is only for rot = 0
     strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/peak_airy;
   }
+  strehlv_corr = strehlv;
   write,format="\033[31mStrehl over FoV after compensation: avg=%.1f%%\033[0m rms=%.1f%%\n", \
     100*avg(strehlv),100*strehlv(rms);
   end_strehl = [avg(strehlv),strehlv(rms)];
@@ -226,30 +257,9 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
 
   if (allof(active)) {
     write,format="%s\n","All optic active flags are set to one, no fitting to do.";
-    return [start_strehl,end_strehl]; // with rms, e.g. [[0.4492,0.0343104],[0.968047,0.0202398]]
+    strehlv_end = strehlv_corr;
   } else {
-    if (!skip_proj) end_strehl = simple_projection_only(pray_data);
-    // end_strehl = projection_only(pray_data,proj_cond);
-    // projection done separately with projection_only()
-  //   require,"projection.i";
-  //   write,format="%s\n","\033[32mProjecting passive optics shape onto DMs\033[0m";
-  //   compute_psfs,pray_data,0,res,amp1,amp2,nodisp=1,fromscreens=0;
-  //   // now pray_data.mircube should contains the estimated phase at foc=0.
-  //   // subtract estimate from original phases.
-  //   // The PSFs are computed from "truecube" (when fromscreens==1)
-  //   pray_data = project_to_dms_simple(pray_data);
-  //   // pray_data = project_to_dms(pray_data,cond=proj_cond);
-  //   *pray_data.truecube = *pray_data.origcube - *pray_data.mircube;
-  //   psfs = compute_psfs(pray_data,0,res*0,amp1,amp2,nodisp=1,fromscreens=1);
-  //   disp_im = build_bigim(psfs,xpos,ypos,variance*0);
-  //   window,1; plsys,1; pli,disp_im; pltitle_vp,"Final"; redraw;
-  //   strehlv = array(0.,ntarget);
-  //   for (i=1;i<=ntarget;i++) {
-  //     strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/peak_airy;
-  //   }
-  //   write,format="\033[31mStrehl over FoV after compensation: avg=%.1f%%\033[0m rms=%.1f%%\n", \
-  //     100*avg(strehlv),100*strehlv(rms);
-  //   end_strehl = [avg(strehlv),strehlv(rms)];
+    strehlv_end = simple_projection_only(pray_data);
   }
 
   // now fit aberrations to actual DMs and compensate
@@ -262,8 +272,7 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
   // project_to_dms(): zero mircube(,,OPT)
   // *pray_data.truecube = *pray_data.origcube - *pray_data.mircube;
   // compute_psf
-
-  return [start_strehl,end_strehl]; // with rms, e.g. [[0.4492,0.0343104],[0.968047,0.0202398]]
+  return [strehlv_init,strehlv_corr,strehlv_end]; // with rms, e.g. [[0.4492,0.0343104],[0.968047,0.0202398]]
 }
 // END OF MAVIS_PRAY
 
@@ -276,7 +285,6 @@ func simple_projection_only(pd)
   // now pd.mircube should contains the estimated phase at foc=0.
   // subtract estimate from original phases.
   // The PSFs are computed from "truecube" (when fromscreens==1)
-  // pd = project_to_dms_simple(pd);
   pd = simple_project(pd);
   *pd.truecube = *pd.origcube - *pd.mircube;
   psfs = compute_psfs(pd,0,,amp1,amp2,nodisp=1,fromscreens=1);
@@ -289,10 +297,11 @@ func simple_projection_only(pd)
   for (i=1;i<=ntarget;i++) {
     strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/peak_airy;
   }
+  end_strehlv = strehlv;
   write,format="\033[31mStrehl over FoV after DM projection: avg=%.1f%%\033[0m rms=%.1f%%\n", \
   100*avg(strehlv),100*strehlv(rms);
   end_strehl = [avg(strehlv),strehlv(rms)];
-  return end_strehl;
+  return end_strehlv;
 }
 
 /*
@@ -341,6 +350,102 @@ func scan_cond(pd)
 }
 */
 
+struct allstrehl_st {
+  long nit;
+  long nsamp;
+  pointer strehls;
+}
+
+func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=)
+{
+
+  strehl_start = array(allstrehl_st(),nof(nitv)*nsamp);
+  strehl_corr  = array(allstrehl_st(),nof(nitv)*nsamp);
+  strehl_end   = array(allstrehl_st(),nof(nitv)*nsamp);
+  ind = 1;
+  for (ns=1;ns<=nsamp;ns++) {
+    for (nn=1;nn<=nof(nitv);nn++) {
+      strehls = mavis_pray(,ngrid,deltafoc,flux,ron,init_strehlv,disp=disp,maxiter=nitv(nn),rseed=rseed);
+      strehl_start(ind).nit = nitv(nn);
+      strehl_start(ind).nsamp = ns;
+      strehl_start(ind).strehls = &strehls(,1);
+      strehl_corr(ind).nit = nitv(nn);
+      strehl_corr(ind).nsamp = ns;
+      strehl_corr(ind).strehls = &strehls(,2);
+      strehl_end(ind).nit = nitv(nn);
+      strehl_end(ind).nsamp = ns;
+      strehl_end(ind).strehls = &strehls(,3);
+      ind++;
+    }
+    plot_do_stats,strehl_start,strehl_corr,strehl_end;
+  }
+  fname = "do_stats_"+totxt(long(random()*100000))+".dat";
+  write,format="Saving data in %s\n",fname;
+  f = createb(fname);
+  save,f,strehl_start,strehl_corr,strehl_end,lambda;
+  close,f;
+}
+
+func plot_do_stats(strehl_start,strehl_corr,strehl_end,binsize=,fname=)
+{
+  if (binsize==[]) binsize=2.5;
+  if (fname) {
+    f = openb(fname+".dat");
+    restore,f,strehl_start,strehl_corr,strehl_end,lambda;
+    close,f;
+  }
+
+  // Strehl histograms only for nit = max(nitv)
+  if (max(strehl_start.nit)==0) return;
+  w = wheremax(strehl_start.nit);
+  nit = max(strehl_start.nit);
+  ss=sc=se=[];
+  cw = current_window();
+  window,10,wait=1,style="clean.gs"; fma; limits,square=0; limits;
+  for (i=1;i<=nof(w);i++) {
+    grow,ss,*(strehl_start(w(i)).strehls)*100;
+    grow,sc,*(strehl_corr(w(i)).strehls)*100;
+    grow,se,*(strehl_end(w(i)).strehls)*100;
+  }
+  hy = histo2(ss,hx,binsize=binsize);
+  plh,hy,hx,color=torgb(tokyonight(3)),width=3;
+  hy = histo2(sc,hx,binsize=binsize);
+  plh,hy,hx,color=torgb(tokyonight(2)),width=3;
+  hy = histo2(se,hx,binsize=binsize);
+  plh,hy,hx,color=torgb(tokyonight(1)),width=3;
+  pltitle,swrite(format="NCPA performance for %d iterations",nit);
+  xytitles,swrite(format="Strehl@%dnm",long(lambda)),"Number in bin",[-0.012,0.008];
+  y0 = y1 = limits()(4)*0.96; dy=limits()(4)*0.06; y1+=limits()(4)*0.012;
+  plg,[y1,y1],[0.,2],width=20,color=torgb(tokyonight(3)); y1-=dy;
+  plg,[y1,y1],[0.,2],width=20,color=torgb(tokyonight(2)); y1-=dy;
+  plg,[y1,y1],[0.,2],width=20,color=torgb(tokyonight(1)); y1-=dy;
+  plt,swrite(format="Strehl start median = %.1f%%",median(ss)),5,y0,tosys=1,height=12,color=torgb(tokyonight(3)),justify="LA"; y0-=dy;
+  plt,swrite(format="Strehl fitted median = %.1f%%",median(sc)),5,y0,tosys=1,height=12,color=torgb(tokyonight(2)),justify="LA"; y0-=dy;
+  plt,swrite(format="Strehl projected median = %.1f%%",median(se)),5,y0,tosys=1,height=12,color=torgb(tokyonight(1)),justify="LA"; y0-=dy;
+  plmargin; range,0;
+  if (window!=-1) window,cw;
+
+  pngcrop,fname;
+  write,format="Plot saved in %s.png\n",fname;
+
+  // plg,ststartavg,nitv2;
+  // plp,ststartavg,nitv2,symbol="o",size=0.5;
+  // pleb,ststartavg,nitv2,dy=ststartrms;
+
+  // plg,stprojavg,nitv2,color=torgb(tokyonight(2));
+  // plp,stprojavg,nitv2,symbol="o",size=0.5,color=torgb(tokyonight(2));
+  // pleb,stprojavg,nitv2,dy=stprojrms,color=torgb(tokyonight(2));
+
+  // plg,stendavg,nitv2,color=torgb(tokyonight(1));
+  // plp,stendavg,nitv2,symbol="o",size=0.5,color=torgb(tokyonight(1));
+  // pleb,stendavg,nitv2,dy=stendrms,color=torgb(tokyonight(1));
+
+  // plmargin; range,0,1;
+  // xytitles,"Number of iterations",swrite(format="Strehl @ %.0fnm",float(lambda)),[-0.015,0.];
+  // pltitle,"End Strehl (all optics: red, DMs: green) vs # of iterations";
+
+}
+
 // The following functions are mavis_pray wrappers to run it repeatedly
 // or versus some changing parameters (number of modes etc)
 func perfvsnit(nitv,ngrid,deltafoc,flux,ron,rseed=,disp=)
@@ -350,43 +455,40 @@ func perfvsnit(nitv,ngrid,deltafoc,flux,ron,rseed=,disp=)
   st_start_vsnit = st_start_spatial_rms_vsnit = nitv*0.+1;
   st_end_vsnit = st_end_spatial_rms_vsnit = nitv*0.+1;
   st_proj_vsnit = st_proj_spatial_rms_vsnit = nitv*0.+1;
+  allstrehls = [];
   for (nn=2;nn<=nof(nitv);nn++) {
-    strehls = mavis_pray(,ngrid,deltafoc,flux,ron,init_strehlv,disp=disp,maxiter=nitv(nn),rseed=rseed,skip_proj=1);
-    st_start_vsnit(nn) = strehls(1,1);
-    st_start_spatial_rms_vsnit(nn) = strehls(2,1);
-    st_end_vsnit(nn) = strehls(1,2);
-    st_end_spatial_rms_vsnit(nn) = strehls(2,2);
-    // best_cond = scan_cond(pray_data);
-    // sproj = projection_only(pray_data,best_cond);
-    sproj = simple_projection_only(pray_data);
-    st_proj_vsnit(nn) = sproj(1);
-    st_proj_spatial_rms_vsnit(nn) = sproj(2);
-    st_end_vsnit; st_end_spatial_rms_vsnit;
-    st_proj_vsnit;st_proj_spatial_rms_vsnit;
+    strehls = mavis_pray(,ngrid,deltafoc,flux,ron,init_strehlv,disp=disp,maxiter=nitv(nn),rseed=rseed);
+    grow,allstrehls,strehls(,,-);
+    st_start_vsnit(nn) = strehls(avg,1);
+    st_start_spatial_rms_vsnit(nn) = strehls(rms,1);
+    st_corr_vsnit(nn) = strehls(avg,2);
+    st_corr_spatial_rms_vsnit(nn) = strehls(rms,2);
+    st_end_vsnit(nn) = strehls(avg,3); 
+    st_end_spatial_rms_vsnit(nn) = strehls(rms,3);
   }
   // fill in the uncorrected case
-  st_start_vsnit(1) = strehls(1,1);
-  st_start_spatial_rms_vsnit(1) = strehls(2,1);
-  st_end_vsnit(1) = strehls(1,1);
-  st_end_spatial_rms_vsnit(1) = strehls(2,1);
-  st_proj_vsnit(1) = strehls(1,1);
-  st_proj_spatial_rms_vsnit(1) = strehls(2,1);
+  st_start_vsnit(1) = st_start_vsnit(2);
+  st_start_spatial_rms_vsnit(1) = st_start_spatial_rms_vsnit(2);
+  st_corr_vsnit(1) = st_start_vsnit(2);
+  st_corr_spatial_rms_vsnit(1) = st_start_spatial_rms_vsnit(2);
+  st_end_vsnit(1) = st_start_vsnit(2);
+  st_end_spatial_rms_vsnit(1) = st_start_spatial_rms_vsnit(2);
 
-  cw = current_window();
-  if (window_exists(5)) window,5;
-  else window,5,wait=1,dpi=long(dpi_target_small);
-  errnm = lambda/2/pi*sqrt(-log(st_end_vsnit));
-  fma;
-  plg,errnm,nitv,width=3;
-  plp,errnm,nitv,symbol="o",size=0.5,width=3;
-  plt,swrite(format="%.1f",errnm(0)),nitv(0)+2,errnm(0)+2,justify="LB",tosys=1,height=10;
-  plmargin; range,0
-  xytitles,"Number of iterations","Phase error [nm]",[-0.015,0.];
-  pltitle,swrite(format="Pray: %dx%d grid, efd=%s, flux=%.0f, RON=%g",\
-      ngrid,ngrid,print(deltafoc)(1),flux*1.,ron*1.);
-  window,cw,wait=1;
-  pause,50;
-  return [nitv,errnm,st_start_vsnit,st_start_spatial_rms_vsnit,st_end_vsnit,\
+  // cw = current_window();
+  // if (window_exists(5)) window,5;
+  // else window,5,wait=1,dpi=long(dpi_target_small);
+  // errnm = lambda/2/pi*sqrt(-log(st_end_vsnit));
+  // fma;
+  // plg,errnm,nitv,width=3;
+  // plp,errnm,nitv,symbol="o",size=0.5,width=3;
+  // plt,swrite(format="%.1f",errnm(0)),nitv(0)+2,errnm(0)+2,justify="LB",tosys=1,height=10;
+  // plmargin; range,0
+  // xytitles,"Number of iterations","Phase error [nm]",[-0.015,0.];
+  // pltitle,swrite(format="Pray: %dx%d grid, efd=%s, flux=%.0f, RON=%g",\
+  //     ngrid,ngrid,print(deltafoc)(1),flux*1.,ron*1.);
+  // window,cw,wait=1;
+  // pause,50;
+  return [nitv,st_start_vsnit,st_start_spatial_rms_vsnit,st_end_vsnit,\
     st_end_spatial_rms_vsnit,st_proj_vsnit,st_proj_spatial_rms_vsnit];
 }
 
@@ -397,9 +499,9 @@ func do_stats_vs_nit(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed,disp=)
   for (k=1;k<=nsamp;k++) {
     write,format="\n\033[32mdo_stats_vs_nit() iteration: %d/%d\033[0m\n",k,nsamp;
     res = perfvsnit(nitv,ngrid,deltafoc,flux,ron,rseed=random(),disp=disp);
-    allststart(,k) = res(,3); // start strehls vs nit
-    allstend(,k) = res(,5); // end strehls vs nit
-    allstproj(,k) = res(,7); // end strehls vs nit
+    allststart(,k) = res(,2); // start strehls vs nit
+    allstend(,k) = res(,4); // end strehls vs nit
+    allstproj(,k) = res(,6); // end strehls vs nit
     nitv2 = res(,1); // nit vector, including 0
   }
   if (window_exists(3)) window,3;
@@ -416,13 +518,13 @@ func do_stats_vs_nit(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed,disp=)
   plp,ststartavg,nitv2,symbol="o",size=0.5;
   pleb,ststartavg,nitv2,dy=ststartrms;
 
-  plg,stendavg,nitv2,color=torgb(tokyonight(1));
-  plp,stendavg,nitv2,symbol="o",size=0.5,color=torgb(tokyonight(1));
-  pleb,stendavg,nitv2,dy=stendrms,color=torgb(tokyonight(1));
-
   plg,stprojavg,nitv2,color=torgb(tokyonight(2));
   plp,stprojavg,nitv2,symbol="o",size=0.5,color=torgb(tokyonight(2));
   pleb,stprojavg,nitv2,dy=stprojrms,color=torgb(tokyonight(2));
+
+  plg,stendavg,nitv2,color=torgb(tokyonight(1));
+  plp,stendavg,nitv2,symbol="o",size=0.5,color=torgb(tokyonight(1));
+  pleb,stendavg,nitv2,dy=stendrms,color=torgb(tokyonight(1));
 
   plmargin; range,0,1;
   xytitles,"Number of iterations",swrite(format="Strehl @ %.0fnm",float(lambda)),[-0.015,0.];
