@@ -128,7 +128,7 @@ func init_defs(&pd,tiptilt=)
     // normalise:
     radeg = array(0.,(*pd.nmod)(k));
     for (i=1;i<=(*pd.nmod)(k);i++) radeg(i) = zernumero(i+1)(1); // +1 because our modes start with tip, not piston
-    defdm = defdm*(1./radeg^1.5)(-,-,);
+    defdm = defdm*(radeg^modes_slope)(-,-,);
     def(,,nz1(k):nz2(k)) = defdm;
     defdm = [];
   }
@@ -201,7 +201,8 @@ func init_perturbation(&pd,&coeff,&cmin,&cmax)
   nz12 = nmod(cum);
   // var = 0.;
   for (no=1;no<=nopt;no++) {
-    c = weight(no)*(random(nmod(no))-0.5)/sqrt(indgen(nmod(no)));
+    // c = weight(no)*(random(nmod(no))-0.5)/sqrt(indgen(nmod(no)));
+    c = array(0.,nmod(no));
     // c(1) = 0.; // FIXME
     cmx = 20*weight(no)/sqrt(indgen(nmod(no)))*fit(no);
     // cmx(1:2) = 0.; // FIXME
@@ -311,7 +312,7 @@ func init_images(&pd,config,&object,&start_strehl)
       images(,,i,n) = eclat((*res(n))(,,i))*flux;
       if (centre_init_images) images(,,i,n) = centre_image(images(,,i,n),pray_data);
       if (deltafoc(n)==0) {
-        strehlv(i) = max(images(,,i,n)/sum(images(,,i,n)))/peak_airy;
+        strehlv(i) = max(images(,,i,n)/sum(images(,,i,n)))/pd.peak_airy;
         strehlv_at_focus = strehlv; //FIXME overall focus=0 not insured
       }
     }

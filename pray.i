@@ -523,6 +523,7 @@ func pray(images,pd,deltafoc,variance,object,disp=,verbose=,threshold=,nbiter=,\
                  gtol=conv_threshold,maxiter=nbiter,verb=10,observer=myobserver,extra=pd);
 
   param=minim;
+  pd.objective_function = fout;
 
   // tac();
   // if (verbose) {

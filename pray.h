@@ -31,9 +31,12 @@ struct pray_struct
   pointer ampli_pup;
   pointer ampli_foc;
   pointer xy4centring;
+  float   avg_focus;
   float   shift_foc;
+  float   peak_airy;
   float   teldiam;
   float   cobs;
+  float   objective_function;
   long    pupd;
   long    size;
   long    ngrid;

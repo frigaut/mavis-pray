@@ -50,8 +50,8 @@ require,"mavis_pray_lib.i";
 require,"pray.i";
 
 write,format="\n%s\n%s\n","Try running","random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"zer\")";
+write,format="or \"%s\"\n","case=10; random_seed,0.75; do_stats,[50],20,8,[0.,-1.5,1.5],1e5,0,disp=1";
 system,"echo 'random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"dh\")' | wl-copy";
-
 
 func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
 rseed=,verbose=,noinc=,modes=,skip_proj=)
@@ -187,11 +187,24 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
 
   // Airy pattern for Strehl estimation.
   airy = roll(abs(fft(*pray_data.ipupil,1))^2);
-  peak_airy = max(airy/sum(airy));
+  pray_data.peak_airy = max(airy/sum(airy));
+  airy = [];
 
   // create initial perturbation (coef/screens, PSFs)
   if (verbose) write,format="T=%.3fs -> \033[32minitialising %s\033[0m\n",tac(),"perturbations";
   status = init_perturbation(pray_data,coeff,cmin,cmax);
+
+  // debug adding focus to check removal works
+  // *pray_data.truecube = *pray_data.truecube+(*pray_data.focus)(,,-)*10;
+  // remove average focus so that extra focal =0 images are in focus in average:
+  if (verbose) write,format="T=%.3fs -> \033[32mRemoving average focus\033[0m\n",tac();
+  foc = *pray_data.focus;
+  for (i=1;i<=nopt;i++) {
+    phase = (*pray_data.truecube)(,,i);
+    wpup = where((*pray_data.pupil)(,,i));
+    avg_focus = sum(phase(wpup)*foc(wpup))/sum(foc(wpup)*foc(wpup));
+    (*pray_data.truecube)(,,i) -= avg_focus*foc;
+  }
 
   // ok first let's do an estimate of Strehl for the deltafoc=0 and scale the
   // phase screens or coefficients from there:
@@ -199,7 +212,7 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
   if (strehl_normalise) {
     if (verbose) write,format="T=%.3fs -> \033[32mStrehl normalisation to %.1f%% (%d iterations)\033[0m\n",tac(),100*strehl_target,strehl_normalise;
     for (i=1;i<=strehl_normalise;i++) { // iterative, this works.
-      status = strehl_normalisation(pray_data,coeff,config,rotv,peak_airy);
+      status = strehl_normalisation(pray_data,coeff,config,rotv);
     }
   }
 
@@ -242,7 +255,7 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
 
   strehlv = array(0.,ntarget);
   for (i=1;i<=ntarget;i++) { //FIXME this is only for rot = 0
-    strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/peak_airy;
+    strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/pray_data.peak_airy;
   }
   strehlv_corr = strehlv;
   write,format="\033[31mStrehl over FoV after compensation: avg=%.1f%%\033[0m rms=%.1f%%\n", \
@@ -262,16 +275,6 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
     strehlv_end = simple_projection_only(pray_data);
   }
 
-  // now fit aberrations to actual DMs and compensate
-  // strategy:
-  // fitcube = mircube
-  // project_to_dms(): we have mircube, for each non "active" optics OPT:
-  // project_to_dms(): compute projection matrices
-  // project_to_dms(): fit optics with modes -> coefs
-  // project_to_dms(): projects coefs onto DMs, add phase to mircube DM plans
-  // project_to_dms(): zero mircube(,,OPT)
-  // *pray_data.truecube = *pray_data.origcube - *pray_data.mircube;
-  // compute_psf
   return [strehlv_init,strehlv_corr,strehlv_end]; // with rms, e.g. [[0.4492,0.0343104],[0.968047,0.0202398]]
 }
 // END OF MAVIS_PRAY
@@ -293,9 +296,8 @@ func simple_projection_only(pd)
   ntarget = nof(*pd.xpos);
   strehlv = array(0.,ntarget);
   airy = roll(abs(fft(*pd.ipupil,1))^2);
-  peak_airy = max(airy/sum(airy));
   for (i=1;i<=ntarget;i++) {
-    strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/peak_airy;
+    strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/pd.peak_airy;
   }
   end_strehlv = strehlv;
   write,format="\033[31mStrehl over FoV after DM projection: avg=%.1f%%\033[0m rms=%.1f%%\n", \
@@ -304,51 +306,6 @@ func simple_projection_only(pd)
   return end_strehlv;
 }
 
-/*
-func projection_only(pd,cond,silent=)
-{
-  require,"projection.i";
-  if (!silent) write,format="\033[32mProjecting passive optics shape onto DMs\033[0m (cond=%.3f)\n",cond;
-  // this projects and update pd with new coefficients
-  csaved = *pd.coeffs;
-  pd = project_to_dms(pd,cond=cond);
-  // same as above, this fills pd.mircube with phases at foc=0 and rot=0???
-  compute_psfs,pd,0,*pd.coeffs,amp1,amp2,nodisp=1,fromscreens=0;
-  *pd.truecube = *pd.origcube - *pd.mircube;
-  psfs = compute_psfs(pd,0,,amp1,amp2,nodisp=1,fromscreens=1);
-  disp_im = build_bigim(psfs,*pd.xpos,*pd.ypos,0);
-  window,1; plsys,1; pli,disp_im; redraw;
-  *pd.coeffs = csaved;  
-  // disp_im = build_bigim(psfs,xpos,ypos,variance*0);
-  ntarget = nof(*pd.xpos);
-  strehlv = array(0.,ntarget);
-  airy = roll(abs(fft(*pd.ipupil,1))^2);
-  peak_airy = max(airy/sum(airy));
-  for (i=1;i<=ntarget;i++) {
-    strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/peak_airy;
-  }
-  write,format="\033[31mStrehl over FoV after DM projection: avg=%.1f%%\033[0m rms=%.1f%%\n", \
-    100*avg(strehlv),100*strehlv(rms);
-  end_strehl = [avg(strehlv),strehlv(rms)];
-  return end_strehl;
-}
-
-func scan_cond(pd)
-{
-  ac=spanl(0.3,6,10); 
-  res=ac*0; 
-  for (i=1;i<=nof(ac);i++) {
-    write,format="conditionning number=%.3f -> ",ac(i);
-    res(i)=projection_only(pd,ac(i),silent=(i!=1))(1); 
-  }
-  window,4; 
-  plot,res,ac; 
-  logxy,1,0;
-  wbest = wheremax(res)
-  write,format="Best performance = %.1f%% at conditioning number = %.3f\n",res(wbest)*100,ac(wbest);
-  return ac(wbest);
-}
-*/
 
 struct allstrehl_st {
   long nit;
@@ -358,14 +315,26 @@ struct allstrehl_st {
 
 func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=)
 {
+  // name = "do_stats_"+totxt(long(random()*100000));
+  d=timestamp(); name = "do_stats_"+streplace(d,strfind(" ",d,n=10),"-");
+  system,"mkdir "+name;
+  system,"cp -p mavis_pray_conf.i "+name+"/"; 
 
   strehl_start = array(allstrehl_st(),nof(nitv)*nsamp);
   strehl_corr  = array(allstrehl_st(),nof(nitv)*nsamp);
   strehl_end   = array(allstrehl_st(),nof(nitv)*nsamp);
+  info,strehl_start;
   ind = 1;
+  rejected = 0;
   for (ns=1;ns<=nsamp;ns++) {
+    write,format="\n\033[32mSample %d/%d\033[0m\n\n",ns,nsamp;
     for (nn=1;nn<=nof(nitv);nn++) {
       strehls = mavis_pray(,ngrid,deltafoc,flux,ron,init_strehlv,disp=disp,maxiter=nitv(nn),rseed=rseed);
+      if (strehls(avg,2)<0.3) {
+        write,format="%s\n","->>> Rejected run!";        
+        rejected = rejected+1;
+        continue;
+      }
       strehl_start(ind).nit = nitv(nn);
       strehl_start(ind).nsamp = ns;
       strehl_start(ind).strehls = &strehls(,1);
@@ -375,33 +344,38 @@ func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=)
       strehl_end(ind).nit = nitv(nn);
       strehl_end(ind).nsamp = ns;
       strehl_end(ind).strehls = &strehls(,3);
-      ind++;
+      ind = ind+1;
     }
-    plot_do_stats,strehl_start,strehl_corr,strehl_end;
+    plot_do_stats,strehl_start,strehl_corr,strehl_end,rejected;
   }
-  fname = "do_stats_"+totxt(long(random()*100000))+".dat";
-  write,format="Saving data in %s\n",fname;
-  f = createb(fname);
-  save,f,strehl_start,strehl_corr,strehl_end,lambda;
+  strehl_start = strehl_start(1:ind-1);
+  strehl_corr  = strehl_corr(1:ind-1);
+  strehl_end   = strehl_end(1:ind-1);
+  write,format="Rejected runs: %d\n",rejected;
+  write,format="Saving data in folder %s/\n",name;
+  f = createb(name+"/do_stats.dat");
+  save,f,strehl_start,strehl_corr,strehl_end,lambda,case,ngrid,deltafoc,flux,ron,rejected;
   close,f;
 }
 
-func plot_do_stats(strehl_start,strehl_corr,strehl_end,binsize=,fname=)
+func plot_do_stats(strehl_start,strehl_corr,strehl_end,rejected,binsize=,name=)
 {
   if (binsize==[]) binsize=2.5;
-  if (fname) {
-    f = openb(fname+".dat");
-    restore,f,strehl_start,strehl_corr,strehl_end,lambda;
+  if (name) {
+    f = openb(name+"/do_stats.dat");
+    restore,f,strehl_start,strehl_corr,strehl_end,lambda,case,ngrid,deltafoc,flux,ron,rejected;
     close,f;
   }
 
   // Strehl histograms only for nit = max(nitv)
   if (max(strehl_start.nit)==0) return;
   w = wheremax(strehl_start.nit);
+  nvalid = sum(strehl_start.nit!=0);
   nit = max(strehl_start.nit);
   ss=sc=se=[];
   cw = current_window();
-  window,10,wait=1,style="clean.gs"; fma; limits,square=0; limits;
+  if (cw!=10) window,10,wait=1,style="clean.gs"; 
+  fma; limits,square=0; limits;
   for (i=1;i<=nof(w);i++) {
     grow,ss,*(strehl_start(w(i)).strehls)*100;
     grow,sc,*(strehl_corr(w(i)).strehls)*100;
@@ -415,41 +389,99 @@ func plot_do_stats(strehl_start,strehl_corr,strehl_end,binsize=,fname=)
   plh,hy,hx,color=torgb(tokyonight(1)),width=3;
   pltitle,swrite(format="NCPA performance for %d iterations",nit);
   xytitles,swrite(format="Strehl@%dnm",long(lambda)),"Number in bin",[-0.012,0.008];
-  y0 = y1 = limits()(4)*0.96; dy=limits()(4)*0.06; y1+=limits()(4)*0.012;
+  y0 = y1 = limits()(4)*0.97; dy=limits()(4)*0.06; y1+=limits()(4)*0.012;
   plg,[y1,y1],[0.,2],width=20,color=torgb(tokyonight(3)); y1-=dy;
   plg,[y1,y1],[0.,2],width=20,color=torgb(tokyonight(2)); y1-=dy;
   plg,[y1,y1],[0.,2],width=20,color=torgb(tokyonight(1)); y1-=dy;
-  plt,swrite(format="Strehl start median = %.1f%%",median(ss)),5,y0,tosys=1,height=12,color=torgb(tokyonight(3)),justify="LA"; y0-=dy;
-  plt,swrite(format="Strehl fitted median = %.1f%%",median(sc)),5,y0,tosys=1,height=12,color=torgb(tokyonight(2)),justify="LA"; y0-=dy;
-  plt,swrite(format="Strehl projected median = %.1f%%",median(se)),5,y0,tosys=1,height=12,color=torgb(tokyonight(1)),justify="LA"; y0-=dy;
+  plt,swrite(format="Strehl start median = %.1f%%",median(ss)),6,y0,tosys=1,height=12,color=torgb(tokyonight(3)),justify="LA"; y0-=dy;
+  plt,swrite(format="Strehl fitted median = %.1f%%",median(sc)),6,y0,tosys=1,height=12,color=torgb(tokyonight(2)),justify="LA"; y0-=dy;
+  plt,swrite(format="Strehl projected median = %.1f%%",median(se)),6,y0,tosys=1,height=12,color=torgb(tokyonight(1)),justify="LA"; y0-=dy;
   plmargin; range,0;
-  if (window!=-1) window,cw;
 
-  pngcrop,fname;
-  write,format="Plot saved in %s.png\n",fname;
+  write,format="%d rejected runs out of %d for this batch\n",rejected,nvalid;
 
-  // plg,ststartavg,nitv2;
-  // plp,ststartavg,nitv2,symbol="o",size=0.5;
-  // pleb,ststartavg,nitv2,dy=ststartrms;
+  if (name) {
+    pngcrop,name+"/do_stats";
+    write,format="Plot saved in %s/do_stats.png\n",name;
+  }
+  hitReturn;
 
-  // plg,stprojavg,nitv2,color=torgb(tokyonight(2));
-  // plp,stprojavg,nitv2,symbol="o",size=0.5,color=torgb(tokyonight(2));
-  // pleb,stprojavg,nitv2,dy=stprojrms,color=torgb(tokyonight(2));
-
-  // plg,stendavg,nitv2,color=torgb(tokyonight(1));
-  // plp,stendavg,nitv2,symbol="o",size=0.5,color=torgb(tokyonight(1));
-  // pleb,stendavg,nitv2,dy=stendrms,color=torgb(tokyonight(1));
-
-  // plmargin; range,0,1;
-  // xytitles,"Number of iterations",swrite(format="Strehl @ %.0fnm",float(lambda)),[-0.015,0.];
+  // Strehl and strehl rms vs nit
+  // find all unique nit:
+  nitv = strehl_start.nit;
+  nitv = nitv(sort(nitv));
+  anit = [];
+  grow,anit,nitv(1);
+  w = where(nitv!=anit(0));
+  while (nof(w)) {
+    nitv = nitv(w);
+    grow,anit,nitv(1);
+    w = where(nitv!=anit(0));
+  }
+  nitv = anit;
+  nnitv = nof(nitv);
+  ss_avg = ss_rms = array(0.,nnitv);
+  sc_avg = sc_rms = array(0.,nnitv);
+  se_avg = se_rms = array(0.,nnitv);
+  fma;
+  for (ni=1;ni<=nnitv;ni++) {
+    w = where(strehl_start.nit==nitv(ni));
+    ss = sc = se = [];
+    for (i=1;i<=nof(w);i++) {
+      grow,ss,*(strehl_start(w(i)).strehls)*100;
+      grow,sc,*(strehl_corr(w(i)).strehls)*100;
+      grow,se,*(strehl_end(w(i)).strehls)*100;
+    }
+    // grow,ss,*(strehl_start(w(i)).strehls)*100;
+    ss_avg(ni) = ss(avg); ss_rms(ni) = ss(rms);
+    sc_avg(ni) = sc(avg); sc_rms(ni) = sc(rms);
+    se_avg(ni) = se(avg); se_rms(ni) = se(rms);
+  }
+  ss_avg = _(ss_avg(1),ss_avg); ss_rms = _(ss_rms(1),ss_rms);
+  sc_avg = _(ss_avg(1),sc_avg); sc_rms = _(ss_rms(1),sc_rms);
+  se_avg = _(ss_avg(1),se_avg); se_rms = _(ss_rms(1),se_rms);
+  nitv = _(0,nitv);
+  plg,sc_avg,nitv,width=3,color=torgb(tokyonight(2));
+  plp,sc_avg,nitv,symbol="o",size=0.7,width=3,color=torgb(tokyonight(2));
+  pleb,sc_avg,nitv,dy=sc_rms,color=torgb(tokyonight(2));
+  plg,se_avg,nitv,width=3,color=torgb(tokyonight(1));
+  plp,se_avg,nitv,symbol="o",size=0.7,width=3,color=torgb(tokyonight(1));
+  pleb,se_avg,nitv,dy=se_rms,color=torgb(tokyonight(1));
+  plg,ss_avg,nitv,width=3,color=torgb(tokyonight(3));
+  plp,ss_avg,nitv,symbol="o",size=0.7,width=3,color=torgb(tokyonight(3));
+  pleb,ss_avg,nitv,dy=ss_rms,color=torgb(tokyonight(3));
   // pltitle,"End Strehl (all optics: red, DMs: green) vs # of iterations";
+  pltitle,"Performance vs number of iterations";
+  xytitles,"Number of iteration",swrite(format="Strehl@%dnm [%%]",long(lambda)),[-0.012,0.008];
 
+  y0 = y1 = 17.; dy=6;
+  plg,[y1,y1],[0.,2],width=20,color=torgb(tokyonight(3)); y1-=dy;
+  plg,[y1,y1],[0.,2],width=20,color=torgb(tokyonight(2)); y1-=dy;
+  plg,[y1,y1],[0.,2],width=20,color=torgb(tokyonight(1)); y1-=dy;
+  plt,"Initial NCPA",5.5,y0-1,tosys=1,height=12,color=torgb(tokyonight(3)),justify="LA"; y0-=dy;
+  plt,"Fitted w/ all optics",5.5,y0-1,tosys=1,height=12,color=torgb(tokyonight(2)),justify="LA"; y0-=dy;
+  plt,"Projected on DMs",5.5,y0-1,tosys=1,height=12,color=torgb(tokyonight(1)),justify="LA"; y0-=dy;
+  plmargin; range,0;
+
+  write,format="%d rejected runs out of %d for this batch\n",rejected,nvalid;
+
+  if (name) {
+    pngcrop,name+"/s_vs_nit";
+    write,format="Plot saved in %s/s_vs_nit.png\n",name;
+  }
+
+
+
+
+  if (cw!=-1) window,cw;
 }
+
 
 // The following functions are mavis_pray wrappers to run it repeatedly
 // or versus some changing parameters (number of modes etc)
 func perfvsnit(nitv,ngrid,deltafoc,flux,ron,rseed=,disp=)
 {
+  error,"needs fixing";
   nitv = _(0,nitv);
   stvsnit = nitv*0.+1;
   st_start_vsnit = st_start_spatial_rms_vsnit = nitv*0.+1;
@@ -532,3 +564,48 @@ func do_stats_vs_nit(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed,disp=)
   // pltitle,swrite(format="Pray: %dx%d grid, efd=%s, flux=%.0f, RON=%g",\
   //   ngrid,ngrid,print(deltafoc)(1),flux*1.,ron*1.);
 }
+
+/*
+func projection_only(pd,cond,silent=)
+{
+  require,"projection.i";
+  if (!silent) write,format="\033[32mProjecting passive optics shape onto DMs\033[0m (cond=%.3f)\n",cond;
+  // this projects and update pd with new coefficients
+  csaved = *pd.coeffs;
+  pd = project_to_dms(pd,cond=cond);
+  // same as above, this fills pd.mircube with phases at foc=0 and rot=0???
+  compute_psfs,pd,0,*pd.coeffs,amp1,amp2,nodisp=1,fromscreens=0;
+  *pd.truecube = *pd.origcube - *pd.mircube;
+  psfs = compute_psfs(pd,0,,amp1,amp2,nodisp=1,fromscreens=1);
+  disp_im = build_bigim(psfs,*pd.xpos,*pd.ypos,0);
+  window,1; plsys,1; pli,disp_im; redraw;
+  *pd.coeffs = csaved;  
+  // disp_im = build_bigim(psfs,xpos,ypos,variance*0);
+  ntarget = nof(*pd.xpos);
+  strehlv = array(0.,ntarget);
+  airy = roll(abs(fft(*pd.ipupil,1))^2);
+  for (i=1;i<=ntarget;i++) {
+    strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/pd.peak_airy;
+  }
+  write,format="\033[31mStrehl over FoV after DM projection: avg=%.1f%%\033[0m rms=%.1f%%\n", \
+    100*avg(strehlv),100*strehlv(rms);
+  end_strehl = [avg(strehlv),strehlv(rms)];
+  return end_strehl;
+}
+
+func scan_cond(pd)
+{
+  ac=spanl(0.3,6,10); 
+  res=ac*0; 
+  for (i=1;i<=nof(ac);i++) {
+    write,format="conditionning number=%.3f -> ",ac(i);
+    res(i)=projection_only(pd,ac(i),silent=(i!=1))(1); 
+  }
+  window,4; 
+  plot,res,ac; 
+  logxy,1,0;
+  wbest = wheremax(res)
+  write,format="Best performance = %.1f%% at conditioning number = %.3f\n",res(wbest)*100,ac(wbest);
+  return ac(wbest);
+}
+*/
