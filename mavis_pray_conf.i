@@ -63,7 +63,7 @@ if (case==5) {
 if (case==6) {
   // To test projection:
   alt     = [8000.,4000.,0.,-8000];
-  nmod    = [100,100,100,100];
+  nmod    = [150,150,150,150];
   nm_rmsv = [50,50,50,50]; // has to be defined if initphase = "screens"
   fit     = [1,1,1,1];
   active  = [0,1,1,0];
@@ -146,15 +146,16 @@ cobs               = 0.;  // central obstruction
 size               = 64;  // side dimension of small PSF arrays
 osampl             = 1;   // oversampling (1 or 2)
 gridpad            = 1.;  // padding in arcsec to validate sources
-ps_slope           = -2.5;
+ps_slope           = -2.5; // slope of power spectrum for init phase screens
+modes_slope        = -1.5; //-1.5; // weight vs radial order for mode/defs
 zoomfactor         = 3;
 display            = 1;
 // debug              = 1;
 strehl_target      = 0.41;
 strehl_target      = exp(-(2*pi*sqrt(sum(nm_rmsv^2))/lambda)^2);
-strehl_normalise   = 0; // number of iterations for Strehl normalisation (recommended: 2)
-// centre_init_images = 0; // centre both original images and modelled ones. DOES NOT WORK
-// centre_pray_images = 0; // centre both original images and modelled ones. DOES NOT WORK
+strehl_normalise   = 10; // number of iterations for Strehl normalisation (recommended: 2)
+centre_init_images = 1; // centre original images.
+centre_pray_images = 0; // centre modelled images. DOES NOT WORK
 nmoddm = nmod(where(active)(1));
 proj_cond          = sqrt(nmoddm)/8.; // condition number for projection to DMs
 proj_cond;
