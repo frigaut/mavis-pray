@@ -1,0 +1,10 @@
+*.fits
+do_stats_*/
+*.png
+*.sublime-project
+*.sublime-workspace
+projection_study.i
+get_non_normalised_strehls*
+do_study*.dat
+do_study*.png
+get2dphase.i

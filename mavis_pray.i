@@ -68,8 +68,8 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
  * PARAMETERS:
  * coeff_offsets: possible offsets for coefficients (rarely used, historical)
  * ngrid: side number of images in the output focal plane (e.g. 4-8)
- * deltafoc: extra focal distances, e.g. [0.,-1.5,1.5]. They don't have to be 
- *   in increasing order. First one is the one for which images are displayed, 
+ * deltafoc: extra focal distances, e.g. [0.,-1.5,1.5]. They don't have to be
+ *   in increasing order. First one is the one for which images are displayed,
  *   so usually 0 to get in focus images.
  * flux: flua per individual image, in ADU (e.g. 100000)
  * ron: read out noise, in ADU
@@ -79,10 +79,10 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
  * rseed= random seed. can be useful to repeat similar runs. If not specified,
  *   will take a random seed
  * verbose= write out more stuff
- * noinc= if set, mavis_pray_conf.i will not be included. Can be useful to 
+ * noinc= if set, mavis_pray_conf.i will not be included. Can be useful to
  *   call again mavis_pray() after an initial call to change some parameters
  * modes= "zer" of "dh". Note that KL is broken at this time
- * skip_proj= skip the projection step, can be executed later using 
+ * skip_proj= skip the projection step, can be executed later using
  *   simple_projection_only(pray_data)
 */
 {
@@ -218,7 +218,7 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
 
   if (skip_high_order!=1) {
     if (verbose) write,format="T=%.3fs -> \033[32mGetting high order residuals\033[0m\n",tac();
-    status = get_high_order_residuals(pray_data,config);    
+    status = get_high_order_residuals(pray_data,config);
   }
 
   if (verbose) write,format="T=%.3fs -> \033[32minitialising %s\033[0m\n",tac(),"images";
@@ -318,7 +318,7 @@ func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=)
   // name = "do_stats_"+totxt(long(random()*100000));
   d=timestamp(); name = "do_stats_"+streplace(d,strfind(" ",d,n=10),"-");
   system,"mkdir "+name;
-  system,"cp -p mavis_pray_conf.i "+name+"/"; 
+  system,"cp -p mavis_pray_conf.i "+name+"/";
 
   strehl_start = array(allstrehl_st(),nof(nitv)*nsamp);
   strehl_corr  = array(allstrehl_st(),nof(nitv)*nsamp);
@@ -331,7 +331,7 @@ func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=)
     for (nn=1;nn<=nof(nitv);nn++) {
       strehls = mavis_pray(,ngrid,deltafoc,flux,ron,init_strehlv,disp=disp,maxiter=nitv(nn),rseed=rseed);
       if (strehls(avg,2)<0.3) {
-        write,format="%s\n","->>> Rejected run!";        
+        write,format="%s\n","->>> Rejected run!";
         rejected = rejected+1;
         continue;
       }
@@ -372,9 +372,9 @@ func plot_do_stats(strehl_start,strehl_corr,strehl_end,rejected,binsize=,name=)
   w = wheremax(strehl_start.nit);
   nvalid = sum(strehl_start.nit!=0);
   nit = max(strehl_start.nit);
-  ss=sc=se=[];
+  ss = sc = se = [];
   cw = current_window();
-  if (cw!=10) window,10,wait=1,style="clean.gs"; 
+  if (cw!=10) window,10,wait=1,style="clean.gs";
   fma; limits,square=0; limits;
   for (i=1;i<=nof(w);i++) {
     grow,ss,*(strehl_start(w(i)).strehls)*100;
@@ -406,6 +406,7 @@ func plot_do_stats(strehl_start,strehl_corr,strehl_end,rejected,binsize=,name=)
   }
   hitReturn;
 
+  /*
   // Strehl and strehl rms vs nit
   // find all unique nit:
   nitv = strehl_start.nit;
@@ -470,7 +471,7 @@ func plot_do_stats(strehl_start,strehl_corr,strehl_end,rejected,binsize=,name=)
     write,format="Plot saved in %s/s_vs_nit.png\n",name;
   }
 
-
+*/
 
 
   if (cw!=-1) window,cw;
@@ -495,7 +496,7 @@ func perfvsnit(nitv,ngrid,deltafoc,flux,ron,rseed=,disp=)
     st_start_spatial_rms_vsnit(nn) = strehls(rms,1);
     st_corr_vsnit(nn) = strehls(avg,2);
     st_corr_spatial_rms_vsnit(nn) = strehls(rms,2);
-    st_end_vsnit(nn) = strehls(avg,3); 
+    st_end_vsnit(nn) = strehls(avg,3);
     st_end_spatial_rms_vsnit(nn) = strehls(rms,3);
   }
   // fill in the uncorrected case
@@ -579,7 +580,7 @@ func projection_only(pd,cond,silent=)
   psfs = compute_psfs(pd,0,,amp1,amp2,nodisp=1,fromscreens=1);
   disp_im = build_bigim(psfs,*pd.xpos,*pd.ypos,0);
   window,1; plsys,1; pli,disp_im; redraw;
-  *pd.coeffs = csaved;  
+  *pd.coeffs = csaved;
   // disp_im = build_bigim(psfs,xpos,ypos,variance*0);
   ntarget = nof(*pd.xpos);
   strehlv = array(0.,ntarget);
@@ -595,14 +596,14 @@ func projection_only(pd,cond,silent=)
 
 func scan_cond(pd)
 {
-  ac=spanl(0.3,6,10); 
-  res=ac*0; 
+  ac=spanl(0.3,6,10);
+  res=ac*0;
   for (i=1;i<=nof(ac);i++) {
     write,format="conditionning number=%.3f -> ",ac(i);
-    res(i)=projection_only(pd,ac(i),silent=(i!=1))(1); 
+    res(i)=projection_only(pd,ac(i),silent=(i!=1))(1);
   }
-  window,4; 
-  plot,res,ac; 
+  window,4;
+  plot,res,ac;
   logxy,1,0;
   wbest = wheremax(res)
   write,format="Best performance = %.1f%% at conditioning number = %.3f\n",res(wbest)*100,ac(wbest);
