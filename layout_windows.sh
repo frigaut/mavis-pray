@@ -11,5 +11,5 @@ niri-set-window-width.sh 'Yorick 2' 380
 sleep 0.1
 niri msg action focus-window --id $(niri-get-id-from-title.sh "Yorick 4")
 niri msg action consume-or-expel-window-left
-sleep 0.1
-niri msg action focus-window --id $(niri-get-id-from-title.sh "DISPLAY=:0 GDK_SCALE ~/p/m/n/mavis-pray")
+sleep 0.2
+niri msg action focus-window --id $(niri-get-id-from-title.sh "DISPLAY=:0 GDK_SCALE ~/P/m/n/mavis-pray")

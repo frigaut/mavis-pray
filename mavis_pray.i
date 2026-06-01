@@ -148,10 +148,6 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
   centre = size/2+0.5;
   variance = (ron?ron^2:0.0001);   // noise variance (must be strickly positive in pray)
 
-  // configuration printout
-  if (verbose) write,format="T=%.3fs -> \033[32mconfiguration printout\033[0m\n",tac();
-  status = configuration_printout();
-
   // define and fill pray data structure
   pray_data         = pray_struct();
   pray_data.teldiam = teldiam;
@@ -173,6 +169,11 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
   status = init_target_positions(geometry,fullfield,ngrid,gridpad,xpos,ypos);
   pray_data.xpos = &xpos; pray_data.ypos = &ypos;
   ntarget = nof(xpos);
+
+  // configuration printout
+  if (verbose) write,format="T=%.3fs -> \033[32mconfiguration printout\033[0m\n",tac();
+  status = configuration_printout();
+
 
   // Init ipupil
   pray_data.ipupil = &float(make_pupil(size,pupd,xc=centre,yc=centre,cobs=cobs));
@@ -404,7 +405,8 @@ func plot_do_stats(strehl_start,strehl_corr,strehl_end,rejected,binsize=,name=)
     pngcrop,name+"/do_stats";
     write,format="Plot saved in %s/do_stats.png\n",name;
   }
-  hitReturn;
+  // hitReturn;
+  pause,500;
 
   /*
   // Strehl and strehl rms vs nit

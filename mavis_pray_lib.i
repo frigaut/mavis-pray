@@ -7,7 +7,8 @@ func configuration_printout(void)
   write,format="%s","Optics conjug. altitude: "; alt;
   write,format="%s","Optics WFE [nm]: "; nm_rmsv;
   write,format="Number of modes (\033[31m%s\033[0m) per optics: ",strcase(1,usemodes); nmod;
-  write,format="%s","Fit optics?: "; fit;
+  write,format="%s","Fit optics?  : "; fit;
+  write,format="%s","Active optics: "; active;
   perturb_from = (initphase=="screens"?"Power spectrum":"Mode coefficients");
   if (initphase=="screens") perturb_from += swrite(format=" (slope=%.3f)",ps_slope);
   write,format="Init phase perturbation from \033[31m%s\033[0m\n",perturb_from;
@@ -330,7 +331,7 @@ func plot_get_non_normalised_strehls(void)
   f = openb("get_non_normalised_strehls.dat");
   restore,f,allstrehl,expected_strehl,lambda,nm_rms,nm_rmsv,allstrehl_per_frame;
   close,f;
-  window,30,style="clean.gs",wait=1; 
+  window,30,style="clean.gs",wait=1;
   fma; limits,square=0;
   hy=histo2(100*allstrehl(*),hx,binsize=2.5);
   plh,hy,hx,color=torgb(tokyonight(1)),width=3;
