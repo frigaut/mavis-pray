@@ -375,7 +375,7 @@ func pray_error(coeffs,&gradient,extra=)
     tmp = coeffs;
     // tmp(1) += deltafoc(n);
     // below rotv defined where? FIXME
-    psfs = compute_psfs(extra,(*extra.deltafoc)(n),tmp,*pd.ampli_pup,*pd.ampli_foc,rotv=rotv(,config.roti(n)));
+    psfs = compute_psfs(extra,(*extra.deltafoc)(n),tmp,*pd.ampli_pup,*pd.ampli_foc,rotv=rotv(,config.roti(n)),nodisp=1);
     for (i=1;i<=ntarget;i++) {
       ftPsf = fft(psfs(,,i),1);
       // Estimation of the criterion associated with image #i
