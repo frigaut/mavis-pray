@@ -125,8 +125,8 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
   //***********************
   // windows initialisation
   //***********************
-  if (verbose) write,format="T=%.3fs -> \033[32minitialising %s\033[0m\n",tac(),"windows";
-  status = init_windows();
+  if (verbose&&disp) write,format="T=%.3fs -> \033[32minitialising %s\033[0m\n",tac(),"windows";
+  if (disp) status = init_windows();
 
   //**********************
   // other initialisations
@@ -293,7 +293,13 @@ func simple_projection_only(pd)
   *pd.truecube = *pd.origcube - *pd.mircube;
   psfs = compute_psfs(pd,0,,amp1,amp2,nodisp=1,fromscreens=1);
   disp_im = build_bigim(psfs,*pd.xpos,*pd.ypos,0);
-  window,1; plsys,1; pli,disp_im; pltitle_vp,"Final"; redraw;
+  if (disp) {
+    window, 1;
+    plsys, 1;
+    pli,disp_im;
+    pltitle_vp, "Final";
+    redraw;
+  }
   ntarget = nof(*pd.xpos);
   strehlv = array(0.,ntarget);
   airy = roll(abs(fft(*pd.ipupil,1))^2);
@@ -314,10 +320,11 @@ struct allstrehl_st {
   pointer strehls;
 }
 
-func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=)
+func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=,batchname=)
 {
   // name = "do_stats_"+totxt(long(random()*100000));
-  d=timestamp(); name = "do_stats_"+streplace(d,strfind(" ",d,n=10),"-");
+  if (batchname==[]) batchname=""; else batchname=batchname+"_";
+  d=timestamp(); name = "do_stats_"+batchname+streplace(d,strfind(" ",d,n=10),"-");
   system,"mkdir "+name;
   system,"cp -p mavis_pray_conf.i "+name+"/";
 
@@ -347,7 +354,7 @@ func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=)
       strehl_end(ind).strehls = &strehls(,3);
       ind = ind+1;
     }
-    plot_do_stats,strehl_start,strehl_corr,strehl_end,rejected;
+    plot_do_stats,strehl_start,strehl_corr,strehl_end,rejected,disp=disp;
   }
   strehl_start = strehl_start(1:ind-1);
   strehl_corr  = strehl_corr(1:ind-1);
@@ -359,7 +366,7 @@ func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=)
   close,f;
 }
 
-func plot_do_stats(strehl_start,strehl_corr,strehl_end,rejected,binsize=,name=)
+func plot_do_stats(strehl_start,strehl_corr,strehl_end,rejected,binsize=,name=,disp=)
 {
   if (binsize==[]) binsize=2.5;
   if (name) {
@@ -374,30 +381,32 @@ func plot_do_stats(strehl_start,strehl_corr,strehl_end,rejected,binsize=,name=)
   nvalid = sum(strehl_start.nit!=0);
   nit = max(strehl_start.nit);
   ss = sc = se = [];
-  cw = current_window();
-  if (cw!=10) window,10,wait=1,style="clean.gs";
-  fma; limits,square=0; limits;
   for (i=1;i<=nof(w);i++) {
     grow,ss,*(strehl_start(w(i)).strehls)*100;
     grow,sc,*(strehl_corr(w(i)).strehls)*100;
     grow,se,*(strehl_end(w(i)).strehls)*100;
   }
-  hy = histo2(ss,hx,binsize=binsize);
-  plh,hy,hx,color=torgb(tokyonight(3)),width=3;
-  hy = histo2(sc,hx,binsize=binsize);
-  plh,hy,hx,color=torgb(tokyonight(2)),width=3;
-  hy = histo2(se,hx,binsize=binsize);
-  plh,hy,hx,color=torgb(tokyonight(1)),width=3;
-  pltitle,swrite(format="NCPA performance for %d iterations",nit);
-  xytitles,swrite(format="Strehl@%dnm",long(lambda)),"Number in bin",[-0.012,0.008];
-  y0 = y1 = limits()(4)*0.97; dy=limits()(4)*0.06; y1+=limits()(4)*0.012;
-  plg,[y1,y1],[0.,2],width=20,color=torgb(tokyonight(3)); y1-=dy;
-  plg,[y1,y1],[0.,2],width=20,color=torgb(tokyonight(2)); y1-=dy;
-  plg,[y1,y1],[0.,2],width=20,color=torgb(tokyonight(1)); y1-=dy;
-  plt,swrite(format="Strehl start median = %.1f%%",median(ss)),6,y0,tosys=1,height=12,color=torgb(tokyonight(3)),justify="LA"; y0-=dy;
-  plt,swrite(format="Strehl fitted median = %.1f%%",median(sc)),6,y0,tosys=1,height=12,color=torgb(tokyonight(2)),justify="LA"; y0-=dy;
-  plt,swrite(format="Strehl projected median = %.1f%%",median(se)),6,y0,tosys=1,height=12,color=torgb(tokyonight(1)),justify="LA"; y0-=dy;
-  plmargin; range,0;
+  if (disp) {
+    cw = current_window();
+    if (cw!=10) window,10,wait=1,style="clean.gs";
+    fma; limits,square=0; limits;
+    hy = histo2(ss,hx,binsize=binsize);
+    plh,hy,hx,color=torgb(colors(3)),width=3;
+    hy = histo2(sc,hx,binsize=binsize);
+    plh,hy,hx,color=torgb(colors(2)),width=3;
+    hy = histo2(se,hx,binsize=binsize);
+    plh,hy,hx,color=torgb(colors(1)),width=3;
+    pltitle,swrite(format="NCPA performance for %d iterations",nit);
+    xytitles,swrite(format="Strehl@%dnm",long(lambda)),"Number in bin",[-0.012,0.008];
+    y0 = y1 = limits()(4)*0.97; dy=limits()(4)*0.06; y1+=limits()(4)*0.012;
+    plg,[y1,y1],[0.,2],width=20,color=torgb(colors(3)); y1-=dy;
+    plg,[y1,y1],[0.,2],width=20,color=torgb(colors(2)); y1-=dy;
+    plg,[y1,y1],[0.,2],width=20,color=torgb(colors(1)); y1-=dy;
+    plt,swrite(format="Strehl start median = %.1f%%",median(ss)),6,y0,tosys=1,height=12,color=torgb(colors(3)),justify="LA"; y0-=dy;
+    plt,swrite(format="Strehl fitted median = %.1f%%",median(sc)),6,y0,tosys=1,height=12,color=torgb(colors(2)),justify="LA"; y0-=dy;
+    plt,swrite(format="Strehl projected median = %.1f%%",median(se)),6,y0,tosys=1,height=12,color=torgb(colors(1)),justify="LA"; y0-=dy;
+    plmargin; range,0;
+  }
 
   write,format="%d rejected runs out of %d for this batch\n",rejected,nvalid;
 
@@ -405,78 +414,37 @@ func plot_do_stats(strehl_start,strehl_corr,strehl_end,rejected,binsize=,name=)
     pngcrop,name+"/do_stats";
     write,format="Plot saved in %s/do_stats.png\n",name;
   }
-  // hitReturn;
   pause,500;
 
-  /*
-  // Strehl and strehl rms vs nit
-  // find all unique nit:
-  nitv = strehl_start.nit;
-  nitv = nitv(sort(nitv));
-  anit = [];
-  grow,anit,nitv(1);
-  w = where(nitv!=anit(0));
-  while (nof(w)) {
-    nitv = nitv(w);
-    grow,anit,nitv(1);
-    w = where(nitv!=anit(0));
+  if (disp&&(cw!=-1)) window,cw;
+}
+
+func merge_stats(marker)
+{
+  strehl_startv=strehl_corrv=strehl_endv=rejectedv=[];
+  af = findfiles("do_stats_"+marker+"_*");
+  for (i=1;i<=nof(af);i++) {
+    write,format="Attempting to read %s/do_stats.dat... ",af(i);
+    f = openb(af(i)+"/do_stats.dat");
+    restore,f,strehl_start,strehl_corr,strehl_end,lambda,case,ngrid,deltafoc,flux,ron,rejected;
+    close,f;
+    write,format="%s\n","done.";
+    grow,strehl_startv,strehl_start;
+    grow,strehl_corrv,strehl_corr;
+    grow,strehl_endv,strehl_end;
+    grow,rejectedv,rejected;
   }
-  nitv = anit;
-  nnitv = nof(nitv);
-  ss_avg = ss_rms = array(0.,nnitv);
-  sc_avg = sc_rms = array(0.,nnitv);
-  se_avg = se_rms = array(0.,nnitv);
-  fma;
-  for (ni=1;ni<=nnitv;ni++) {
-    w = where(strehl_start.nit==nitv(ni));
-    ss = sc = se = [];
-    for (i=1;i<=nof(w);i++) {
-      grow,ss,*(strehl_start(w(i)).strehls)*100;
-      grow,sc,*(strehl_corr(w(i)).strehls)*100;
-      grow,se,*(strehl_end(w(i)).strehls)*100;
-    }
-    // grow,ss,*(strehl_start(w(i)).strehls)*100;
-    ss_avg(ni) = ss(avg); ss_rms(ni) = ss(rms);
-    sc_avg(ni) = sc(avg); sc_rms(ni) = sc(rms);
-    se_avg(ni) = se(avg); se_rms(ni) = se(rms);
-  }
-  ss_avg = _(ss_avg(1),ss_avg); ss_rms = _(ss_rms(1),ss_rms);
-  sc_avg = _(ss_avg(1),sc_avg); sc_rms = _(ss_rms(1),sc_rms);
-  se_avg = _(ss_avg(1),se_avg); se_rms = _(ss_rms(1),se_rms);
-  nitv = _(0,nitv);
-  plg,sc_avg,nitv,width=3,color=torgb(tokyonight(2));
-  plp,sc_avg,nitv,symbol="o",size=0.7,width=3,color=torgb(tokyonight(2));
-  pleb,sc_avg,nitv,dy=sc_rms,color=torgb(tokyonight(2));
-  plg,se_avg,nitv,width=3,color=torgb(tokyonight(1));
-  plp,se_avg,nitv,symbol="o",size=0.7,width=3,color=torgb(tokyonight(1));
-  pleb,se_avg,nitv,dy=se_rms,color=torgb(tokyonight(1));
-  plg,ss_avg,nitv,width=3,color=torgb(tokyonight(3));
-  plp,ss_avg,nitv,symbol="o",size=0.7,width=3,color=torgb(tokyonight(3));
-  pleb,ss_avg,nitv,dy=ss_rms,color=torgb(tokyonight(3));
-  // pltitle,"End Strehl (all optics: red, DMs: green) vs # of iterations";
-  pltitle,"Performance vs number of iterations";
-  xytitles,"Number of iteration",swrite(format="Strehl@%dnm [%%]",long(lambda)),[-0.012,0.008];
-
-  y0 = y1 = 17.; dy=6;
-  plg,[y1,y1],[0.,2],width=20,color=torgb(tokyonight(3)); y1-=dy;
-  plg,[y1,y1],[0.,2],width=20,color=torgb(tokyonight(2)); y1-=dy;
-  plg,[y1,y1],[0.,2],width=20,color=torgb(tokyonight(1)); y1-=dy;
-  plt,"Initial NCPA",5.5,y0-1,tosys=1,height=12,color=torgb(tokyonight(3)),justify="LA"; y0-=dy;
-  plt,"Fitted w/ all optics",5.5,y0-1,tosys=1,height=12,color=torgb(tokyonight(2)),justify="LA"; y0-=dy;
-  plt,"Projected on DMs",5.5,y0-1,tosys=1,height=12,color=torgb(tokyonight(1)),justify="LA"; y0-=dy;
-  plmargin; range,0;
-
-  write,format="%d rejected runs out of %d for this batch\n",rejected,nvalid;
-
-  if (name) {
-    pngcrop,name+"/s_vs_nit";
-    write,format="Plot saved in %s/s_vs_nit.png\n",name;
-  }
-
-*/
-
-
-  if (cw!=-1) window,cw;
+  strehl_start = strehl_startv;
+  strehl_corr = strehl_corrv;
+  strehl_end = strehl_endv;
+  rejected = rejectedv;
+  dir  = "do_stats_"+marker;
+  name = dir+"/do_stats.dat";
+  write,format="Writing merged data to %s\n",name;
+  system,"mkdir -p "+dir;
+  f = createb(name);
+  save,f,strehl_start,strehl_corr,strehl_end,lambda,case,ngrid,deltafoc,flux,ron,rejected;
+  close,f;
 }
 
 
@@ -553,13 +521,13 @@ func do_stats_vs_nit(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed,disp=)
   plp,ststartavg,nitv2,symbol="o",size=0.5;
   pleb,ststartavg,nitv2,dy=ststartrms;
 
-  plg,stprojavg,nitv2,color=torgb(tokyonight(2));
-  plp,stprojavg,nitv2,symbol="o",size=0.5,color=torgb(tokyonight(2));
-  pleb,stprojavg,nitv2,dy=stprojrms,color=torgb(tokyonight(2));
+  plg,stprojavg,nitv2,color=torgb(colors(2));
+  plp,stprojavg,nitv2,symbol="o",size=0.5,color=torgb(colors(2));
+  pleb,stprojavg,nitv2,dy=stprojrms,color=torgb(colors(2));
 
-  plg,stendavg,nitv2,color=torgb(tokyonight(1));
-  plp,stendavg,nitv2,symbol="o",size=0.5,color=torgb(tokyonight(1));
-  pleb,stendavg,nitv2,dy=stendrms,color=torgb(tokyonight(1));
+  plg,stendavg,nitv2,color=torgb(colors(1));
+  plp,stendavg,nitv2,symbol="o",size=0.5,color=torgb(colors(1));
+  pleb,stendavg,nitv2,dy=stendrms,color=torgb(colors(1));
 
   plmargin; range,0,1;
   xytitles,"Number of iterations",swrite(format="Strehl @ %.0fnm",float(lambda)),[-0.015,0.];

@@ -68,7 +68,7 @@ func remove_mode(pha,pupil,mode)
 //  * Returns p2on1 (projection of 2 on 1) array [2,nmod1,nmod2]
 //  * to get coefficients on plan1 knowing coefficient on plan2 coef2:
 //  * coef1 = p2on1(,+)*coef2(+)
-//  * SEE ALSO: proj_modes_from_to_for_study() in projection_study.i for 
+//  * SEE ALSO: proj_modes_from_to_for_study() in projection_study.i for
 //  * a full blow detailled function and analysis. This has been checked, it works.
 //  */
 // {
@@ -83,7 +83,7 @@ func remove_mode(pha,pupil,mode)
 //   patchd2 = dim;
 //   patchd1 = lround(dim/ratio);
 //   p2on1 = array(0.,[2,nmod1,nmod2]);
-//   // can't make modes with fractional patchd. will have to up dim and patchd to 
+//   // can't make modes with fractional patchd. will have to up dim and patchd to
 //   // do this calculation to reduce effect of rounding errors
 //   // kernel diameter is patch2-patch1
 //   ker = dist(dim)<=((patchd2-patchd1)/2.);
@@ -115,7 +115,7 @@ func remove_mode(pha,pupil,mode)
 //  * Computes the optimal projection matrix from one plan (plano=plan object)
 //  * to several DMs.
 //  * modes: "zer","kl" or "dh"
-//  * ratiov: vector of ratio of DMs to plano. 
+//  * ratiov: vector of ratio of DMs to plano.
 //  * NOT NAYMORE: All elements have to be >= 1 and in creasing order.
 //  * example: [1.5, 1.8]. See proj_modes_from_to. In this example, the ratio
 //  * between plano and the DMs (2 DMs) are 1.5 and 1.8. The ratio between the proj_to_dms
@@ -341,7 +341,7 @@ func zero_coeff(pd,noptic)
 //    if (debug>100) { write,format="delta altitude passive -> active =%f\n",delta_alt; }
 //    theta = 2*max(abs(*pd.xpos,*pd.ypos))*4.848e-6;
 //    kerd = theta*delta_alt/psize; // kernel in pixel
-//    if (optim_fov_fact) kerd *= optim_fov_fact; 
+//    if (optim_fov_fact) kerd *= optim_fov_fact;
 //    if (debug>100) { write,format="Theta = %f [rd], kernel diameter = %f [pix]\n",theta,kerd; }
 //    pup_pass = (*pd.pupil)(,,ipass)(,,1);
 //    pup_active = (*pd.pupil)(,,iactive)(,,1);
@@ -474,14 +474,17 @@ func simple_project(pd)
     if (debug>100) { write,format="Corresponding index active =%d\n",iactive; }
     pd=project(pd,ipass,iactive);
   }
-  window,2;
+  if (disp) window,2;
   for (no=1;no<=nopt;no++) {
     (*pd.mircube)(,,no) *= (*pd.pupil)(,,no);
-    plsys,no*3-1;
-    pli,(*pd.mircube)(,,no);
-    plsys,no*3; pli,array(0.,[2,64,64]);
+    if (disp) {
+      plsys,no*3-1;
+      pli,(*pd.mircube)(,,no);
+      plsys,no*3;
+      pli,array(0.,[2,64,64]);
+    }
   }
-  redraw;
+  if (disp) redraw;
 
   return pd;
 }

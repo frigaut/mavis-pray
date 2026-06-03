@@ -126,11 +126,11 @@ func get_high_order_residuals(pd,config)
     rec = d(,+)*proj(+);
     rec2d = array(0.0f,[2,pd.size,pd.size]);
     rec2d(wpatch) = rec-avg(rec); // pistong subtracted
-    window,1; fma;
     hophase = ((*pd.truecube)(,,no)-rec2d);
     hophase = hophase-avg(hophase(where(mask1)));
     hocube(,,no) = hophase*mask1;
     if (debug) {
+      window,1; fma;
       plsys,3; pli,(*pd.truecube)(,,no)*mask1; pltitle_vp,"turbulent";
       plsys,2; pli,rec2d*mask1; pltitle_vp,"fitted";
       plsys,1; pli,hocube(,,no); pltitle_vp,"Residuals";
@@ -293,19 +293,21 @@ func get_non_normalised_strehls(nit)
     grow,allstrehl,res(,-);
     // allres(,n) = res(,1);
     // cw = current_window();
-    window,5,wait=1; limits,square=0;
-    hy=histo2(100*allstrehl(*),hx,binsize=2.5);
-    fma; plh,hy,hx;
-    plg,[0.,max(hy)],[1,1]*100*expected_strehl,type=2;
-    xytitles,swrite(format="Strehl@%dnm",long(lambda)),"Number in bin",[-0.015,0.];
-    pth=pltitle_height; pltitle_height=10;
-    // pltitle,swrite(format="Iter %d/%d, Strehl=%.1f%%+/-%.1f%% (expected=%.1f%%)",\
-    //   n,nit,100*allstrehl(*)(avg),100*allstrehl(*)(rms),100*expected_strehl);
-    pltitle,swrite(format="It %d, Strehl=%.1f%% (med=%.1f) +/-%.1f (expected=%.1f from Prms=%.1f)",\
-      n,100*allstrehl(*)(avg),median(100*allstrehl(*)),100*allstrehl(*)(rms),100*expected_strehl,nm_rms);
-    plmargin; range,0;
-    window,3,wait=1;
-    pltitle_height = pth;
+    if (disp) {
+      window,5,wait=1; limits,square=0;
+      hy=histo2(100*allstrehl(*),hx,binsize=2.5);
+      fma; plh,hy,hx;
+      plg,[0.,max(hy)],[1,1]*100*expected_strehl,type=2;
+      xytitles,swrite(format="Strehl@%dnm",long(lambda)),"Number in bin",[-0.015,0.];
+      pth=pltitle_height; pltitle_height=10;
+      // pltitle,swrite(format="Iter %d/%d, Strehl=%.1f%%+/-%.1f%% (expected=%.1f%%)",\
+      //   n,nit,100*allstrehl(*)(avg),100*allstrehl(*)(rms),100*expected_strehl);
+      pltitle,swrite(format="It %d, Strehl=%.1f%% (med=%.1f) +/-%.1f (expected=%.1f from Prms=%.1f)",\
+        n,100*allstrehl(*)(avg),median(100*allstrehl(*)),100*allstrehl(*)(rms),100*expected_strehl,nm_rms);
+      plmargin; range,0;
+      window,3,wait=1;
+      pltitle_height = pth;
+    }
   }
   // allres_avg = allres(,avg);
   // allres_rms = allres(,rms);
@@ -334,7 +336,7 @@ func plot_get_non_normalised_strehls(void)
   window,30,style="clean.gs",wait=1;
   fma; limits,square=0;
   hy=histo2(100*allstrehl(*),hx,binsize=2.5);
-  plh,hy,hx,color=torgb(tokyonight(1)),width=3;
+  plh,hy,hx,color=torgb(colors(1)),width=3;
   plg,[0.,max(hy)],[1,1]*100*expected_strehl,type=2;
   pltitle_height=12;
   xytitles,swrite(format="Strehl@%dnm",long(lambda)),"Number in bin",[-0.008,0.01];
@@ -351,7 +353,7 @@ func plot_get_non_normalised_strehls(void)
   chy = hy(cum);
   chy = chy/max(chy);
   chx = _(hx,hx(0)+(hx(2)-hx(1)));
-  plh,chy,chx,color=torgb(tokyonight(1)),width=3;
+  plh,chy,chx,color=torgb(colors(1)),width=3;
   plg,[0.,1.],[1,1]*100*expected_strehl,type=2;
   plmargin; range,0,1;
   xytitles,swrite(format="Strehl@%dnm",long(lambda)),"Number in bin",[-0.008,0.01];
