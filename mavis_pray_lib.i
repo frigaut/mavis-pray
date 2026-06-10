@@ -140,11 +140,12 @@ func get_high_order_residuals(pd,config)
   // get strehl that correspond to the high order only:
   cubesave = *pd.truecube; // save the actual cube
   pd.truecube = &hocube;
-  strehlv = init_images(pd,config,object,start_strehl);
+  strehlv = init_images(pd,config,object,start_strehl,label="HO residuals only: ");
   pd.truecube = &cubesave;
   hocube = [];
-  write,format="\033[31mStrehl over FoV from high orders (fitting): avg=%.1f%%\033[0m rms=%.1f%%\n", \
-    100*avg(strehlv),100*strehlv(rms);
+  // write,format="\033[31mStrehl over FoV from high orders (fitting): avg=%.1f%%\033[0m rms=%.1f%%\n", \
+  //   100*avg(strehlv),100*strehlv(rms);
+  // above: already displayed in init_images()
 }
 
 func fix_diskharmonic(&dh)

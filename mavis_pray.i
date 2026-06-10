@@ -1,47 +1,76 @@
 /* mavis_pray.i
 example of call:
 Overall wrappers:
-res=perfvsnit([100],4,[-1,0,1]*1.5,10000,0.1,rseed=random(),disp=0);
-res=do_stats_vs_nit([20,30,50,100],10,4,[-1,0,1]*1.8,1,0.01)
+case=10; random_seed,0.45; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=100,modes="zer")
+case=10; random_seed,0.75; do_stats,[50],20,8,[0.,-1.5,1.5],1e5,0,disp=1;
 
 Configuration is defined in mavis_pray_config.i. Edit it and run
-perfvsnit() as above. The DM phase window may need to be killed if
-the number of DM is changed.
+functions as above (e.g. mavis_pray()).
 
 
-Example of a run:
-> res=perfvsnit([50],8,[0,-1.5,1.5],100,0.001,rseed=random(),disp=1)
---------------------------------------------------------------------
+Example of a run (also reference case):
+> case=10; random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=100,modes="zer")
+1.25
+T=0.000s -> initialising windows
+T=0.854s -> initialising config
+T=0.854s -> initialising image centring
+T=0.854s -> initialising target positions
+T=0.854s -> configuration printout
+--------------------------------------------------------------------------
 Pray for MAVIS (mavis_pray and pray) - System Configuration
-Number of optics: 3, Number of extra-focal pos.: 6, number of rotation: 2
+Number of optics: 10, Number of extra-focal pos.: 3, number of rotation: 2
 Extra focal distances: [0,-1.5,1.5]
-Optics conjug. altitude: [0,6000,13500]
-Number of modes (DH) per optics: [50,50,50]
-Fit optics?: [1,1,1,1,1,1,1,1,1,1,1,1,1]
-Optics rotation, config 1: [0,0,0]
-Optics rotation, config 2: [180,0,0]
-Number of sources = 8 across 30" FoV, 59 total, hexagonal geometry
-source flux = 100.0, RON= 0.001
---------------------------------------------------------------------
-Strehl over FoV (rot=[0,0,0]): avg=0.342289 rms=0.034295
-Strehl over FoV (rot=[180,0,0]): avg=0.375084 rms=0.038969
+Optics conjug. altitude: [45500,13600,6000,1200,0,-1900,-4000,-12400,-23900,-29900]
+Optics WFE [nm]: [10,25,25,10,25,47,9,11,6.9,48]
+Number of modes (ZER) per optics: [100,100,100,100,100,100,100,100,100,100]
+Fit optics?  : [1,1,1,1,1,1,1,1,1,1]
+Active optics: [0,1,1,0,1,0,0,0,0,0]
+Init phase perturbation from Power spectrum (slope=-2.500)
+Optics rotation, config 1: [0,0,0,0,0,0,0,0,0,0]
+Optics rotation, config 2: [180,180,180,180,180,180,180,90,0,0]
+Number of sources = 8 across 30" FoV, 67 total, hexagonal geometry
+source flux = 100000.0, RON= 1
+Image centring: init:OFF  pray:OFF
+Projection to DM(s) conditionning number: 1.2
+--------------------------------------------------------------------------
+T=0.854s -> initialising defs
+T=13.276s -> initialising masks
+T=13.296s -> initialising perturbations
+T=13.319s -> Removing average focus
+T=13.319s -> Strehl normalisation to 41.0% (10 iterations)
+T=13.512s -> Getting high order residuals
+Strehl over FoV (rot=[0,0,0,0,0,0,0,0,0,0]): avg=99.3% rms=0.1%
+Strehl over FoV (rot=[180,180,180,180,180,180,180,90,0,0]): avg=99.3% rms=0.1%
+Strehl over FoV (all rotations): avg=99.3% rms=0.1%
+Strehl over FoV from high orders (fitting): avg=99.3% rms=0.1%
+T=13.842s -> initialising images
+Strehl over FoV (rot=[0,0,0,0,0,0,0,0,0,0]): avg=44.4% rms=15.6%
+Strehl over FoV (rot=[180,180,180,180,180,180,180,90,0,0]): avg=37.5% rms=14.5%
+Strehl over FoV (all rotations): avg=41.0% rms=15.4%
+T=13.999s -> calling pray
 Using coeff = 0 as first guess
+Using the VMLM-B method for minimization.
+ ITER    EVAL     CPU [s]            FUNC             max(|G|)   STEPLEN
+------  ------  ----------  -----------------------  ---------  ---------
 # Iter.   Time (ms)    Eval. Reject.       Obj. Func.           Grad.       Step
 # ---------------------------------------------------------------------------------
-      0     379.680       1       0   3.264587827870292e+10   5.958e+09   0.000e+00
-     10    5817.125      14       1   1.053084155868230e+09   1.069e+09   1.000e+00
-     20    9707.075      24       1   1.057027390264975e+08   2.385e+08   1.000e+00
-     30   13553.921      34       1   4.101288959418561e+07   8.583e+07   1.000e+00
-     40   17399.916      44       1   1.767627173208634e+07   5.198e+07   1.000e+00
-     50   21251.018      54       1   9.551682008189257e+06   9.045e+07   1.000e+00
+      0    1519.584       1       0   4.280392221656976e+10   1.461e+10   0.000e+00
+     10   18743.320      12       0   2.692591830813855e+09   7.446e+09   1.000e+00
+     20   35639.399      23       0   1.254362812538604e+09   3.295e+09   1.000e+00
+     30   54099.775      35       0   6.395596149373661e+08   1.455e+09   1.000e+00
+     40   72538.582      47       0   4.188744127318403e+08   1.124e+09   1.000e+00
+     50   89661.632      58       0   3.031422851147903e+08   9.245e+08   1.000e+00
+     60  108047.025      70       0   2.392147550769584e+08   4.854e+08   1.000e+00
+     70  124838.690      81       0   1.854182988855661e+08   5.931e+08   1.000e+00
+     80  144530.385      94       0   1.575390743933755e+08   4.256e+08   1.000e+00
+     90  164363.523     107       0   1.246432861226766e+08   5.142e+08   5.541e-02
+    100  181171.796     118       0   1.078448037931315e+08   2.821e+08   1.000e+00
 # Termination: too many iterations
-Strehl over FoV (rot=[0,0,0]): avg=0.998477 rms=0.000507
-Strehl over FoV (rot=[180,0,0]): avg=0.998474 rms=0.000481
-
-Additional upgrades and questions:
-- do I need to scale the rms according to the altitude (the diameter of the beam
-on the particular optics). Probably. TODO.
-
+Strehl over FoV after compensation: avg=98.6% rms=0.3%
+Strehl due to fit=0 optics only (full original rms): 100.0%
+Projecting passive optics shape onto DMs
+Strehl over FoV after DM projection: avg=76.5% rms=12.1%
+> 
 */
 
 require,"mavis_pray.h";
@@ -49,16 +78,16 @@ require,"mavis_pray_init.i";
 require,"mavis_pray_lib.i";
 require,"pray.i";
 
-write,format="\n%s\n%s\n","Try running","random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"zer\")";
+write,format="\n%s\n%s\n","Try running","case=10; random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"zer\")";
 write,format="or \"%s\"\n","case=10; random_seed,0.75; do_stats,[50],20,8,[0.,-1.5,1.5],1e5,0,disp=1";
-system,"echo 'random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"dh\")' | wl-copy";
+system,"echo 'case=10; random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"dh\")' | wl-copy";
 
 func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
 rseed=,verbose=,noinc=,modes=,skip_proj=)
 /* DOCUMENT func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
 rseed=,verbose=,noinc=,modes=,skip_proj=)
  * mavis_pray simulates the MAVIS NCPA process. It does:
- * initliasation of the optics surface for all optics
+ * initialisation of the optics surface for all optics
  * computes the images
  * inits a number of system parameters
  * call pray() which does the minimisation
@@ -154,7 +183,7 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
   pray_data.cobs    = cobs;
   pray_data.pupd    = pupd;
   pray_data.size    = size;
-  pray_data.ngrid    = ngrid;
+  pray_data.ngrid   = ngrid;
   pray_data.centre  = centre;
   pray_data.nmod    = &nmod;
   pray_data.alt     = &alt;
@@ -223,7 +252,7 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
   }
 
   if (verbose) write,format="T=%.3fs -> \033[32minitialising %s\033[0m\n",tac(),"images";
-  strehlv_init = init_images(pray_data,config,object,start_strehl);
+  strehlv_init = init_images(pray_data,config,object,start_strehl,label="Init images: ");
 
   if (debug&&(imask_radius_scaling!=[])) write,format="T=%.3fs -> %s\n",tac(),"Masking images to cut high frequencies";
   status = mask_images(pray_data,imask_radius_scaling);
@@ -251,23 +280,34 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
   // subtract estimate from original phases.
   // The PSFs are computed from "truecube" (when fromscreens==1)
   *pray_data.truecube = *pray_data.origcube - *pray_data.mircube;
-  psfs = compute_psfs(pray_data,0,res*0,amp1,amp2,nodisp=1,fromscreens=1);
-  disp_im = build_bigim(psfs,xpos,ypos,variance*0);
 
-  strehlv = array(0.,ntarget);
-  for (i=1;i<=ntarget;i++) { //FIXME this is only for rot = 0
-    strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/pray_data.peak_airy;
+  // psfs = compute_psfs(pray_data,0,res*0,amp1,amp2,nodisp=1,fromscreens=1);
+  // disp_im = build_bigim(psfs,xpos,ypos,variance*0);
+
+  // we compute Strehls for *all* rotation configurations:
+  psfs = []; bigim_done = 0;
+  for (i=1;i<=nfoc;i++) {
+    if (deltafoc(i)!=0) continue; // Strehl has meaning only for in-focus images
+    grow,psfs,compute_psfs(pray_data,deltafoc(i),res*0,amp1,amp2, \
+      rotv=rotv(,config.roti(i)),nodisp=1,fromscreens=1);
+    // big im display only for first rot config:
+    if (bigim_done==0) disp_im = build_bigim(psfs,xpos,ypos,variance*0);
+    bigim_done = 1;
   }
-  strehlv_corr = strehlv;
-  write,format="\033[31mStrehl over FoV after compensation: avg=%.1f%%\033[0m rms=%.1f%%\n", \
-    100*avg(strehlv),100*strehlv(rms);
-  end_strehl = [avg(strehlv),strehlv(rms)];
+
+  strehlv_corr = array(0.,dimsof(psfs)(0));
+  for (i=1;i<=nof(strehlv_corr);i++) {
+    strehlv_corr(i) = max(psfs(,,i)/sum(psfs(,,i)))/pray_data.peak_airy;
+  }
+  write,format="\033[31mStrehl over FoV after compensation (all rotations): avg=%.1f%%\033[0m rms=%.1f%%\n", \
+    100*avg(strehlv_corr),100*strehlv_corr(rms);
+  end_strehl = [avg(strehlv_corr),strehlv_corr(rms)];
 
   // compute strehl if all the fit=1 optics were perfectly corrected and the
   // fit=0 not corrected at all.
-  tmp = nm_rmsv*(1-fit);
-  st = exp(-(2*pi/lambda*sqrt(sum(tmp^2.))));
-  write,format="Strehl due to fit=0 optics only (full original rms): %.1f%%\n",st*100;
+  // tmp = nm_rmsv*(1-fit);
+  // st = exp(-(2*pi/lambda*sqrt(sum(tmp^2.))));
+  // write,format="Strehl due to fit=0 optics only (full original rms): %.1f%%\n",st*100;
 
   if (allof(active)) {
     write,format="%s\n","All optic active flags are set to one, no fitting to do.";
@@ -291,8 +331,20 @@ func simple_projection_only(pd)
   // The PSFs are computed from "truecube" (when fromscreens==1)
   pd = simple_project(pd);
   *pd.truecube = *pd.origcube - *pd.mircube;
-  psfs = compute_psfs(pd,0,,amp1,amp2,nodisp=1,fromscreens=1);
-  disp_im = build_bigim(psfs,*pd.xpos,*pd.ypos,0);
+
+  // psfs = compute_psfs(pd,0,,amp1,amp2,nodisp=1,fromscreens=1);
+  // we compute Strehls for *all* rotation configurations:
+  psfs = []; bigim_done = 0;
+  for (i=1;i<=nfoc;i++) {
+    if (deltafoc(i)!=0) continue; // Strehl has meaning only for in-focus images
+    grow,psfs,compute_psfs(pd,deltafoc(i),res*0,amp1,amp2, \
+      rotv=rotv(,config.roti(i)),nodisp=1,fromscreens=1);
+    // big im display only for first rot config:
+    if (bigim_done==0) disp_im = build_bigim(psfs,*pd.xpos,*pd.ypos,0);
+    bigim_done = 1;
+  }
+
+  // disp_im = build_bigim(psfs,*pd.xpos,*pd.ypos,0);
   if (disp) {
     window, 1;
     plsys, 1;
@@ -300,14 +352,14 @@ func simple_projection_only(pd)
     pltitle_vp, "Final";
     redraw;
   }
-  ntarget = nof(*pd.xpos);
-  strehlv = array(0.,ntarget);
-  airy = roll(abs(fft(*pd.ipupil,1))^2);
-  for (i=1;i<=ntarget;i++) {
+//   ntarget = nof(*pd.xpos);
+  strehlv = array(0.,dimsof(psfs)(0));
+//   airy = roll(abs(fft(*pd.ipupil,1))^2);
+  for (i=1;i<=nof(strehlv);i++) {
     strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/pd.peak_airy;
   }
   end_strehlv = strehlv;
-  write,format="\033[31mStrehl over FoV after DM projection: avg=%.1f%%\033[0m rms=%.1f%%\n", \
+  write,format="\033[31mStrehl over FoV after DM projection (all rotations): avg=%.1f%%\033[0m rms=%.1f%%\n", \
   100*avg(strehlv),100*strehlv(rms);
   end_strehl = [avg(strehlv),strehlv(rms)];
   return end_strehlv;
@@ -331,7 +383,6 @@ func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=,batchname=)
   strehl_start = array(allstrehl_st(),nof(nitv)*nsamp);
   strehl_corr  = array(allstrehl_st(),nof(nitv)*nsamp);
   strehl_end   = array(allstrehl_st(),nof(nitv)*nsamp);
-  info,strehl_start;
   ind = 1;
   rejected = 0;
   for (ns=1;ns<=nsamp;ns++) {
@@ -448,6 +499,7 @@ func merge_stats(marker)
 }
 
 
+/*
 // The following functions are mavis_pray wrappers to run it repeatedly
 // or versus some changing parameters (number of modes etc)
 func perfvsnit(nitv,ngrid,deltafoc,flux,ron,rseed=,disp=)
@@ -477,26 +529,13 @@ func perfvsnit(nitv,ngrid,deltafoc,flux,ron,rseed=,disp=)
   st_end_vsnit(1) = st_start_vsnit(2);
   st_end_spatial_rms_vsnit(1) = st_start_spatial_rms_vsnit(2);
 
-  // cw = current_window();
-  // if (window_exists(5)) window,5;
-  // else window,5,wait=1,dpi=long(dpi_target_small);
-  // errnm = lambda/2/pi*sqrt(-log(st_end_vsnit));
-  // fma;
-  // plg,errnm,nitv,width=3;
-  // plp,errnm,nitv,symbol="o",size=0.5,width=3;
-  // plt,swrite(format="%.1f",errnm(0)),nitv(0)+2,errnm(0)+2,justify="LB",tosys=1,height=10;
-  // plmargin; range,0
-  // xytitles,"Number of iterations","Phase error [nm]",[-0.015,0.];
-  // pltitle,swrite(format="Pray: %dx%d grid, efd=%s, flux=%.0f, RON=%g",\
-  //     ngrid,ngrid,print(deltafoc)(1),flux*1.,ron*1.);
-  // window,cw,wait=1;
-  // pause,50;
   return [nitv,st_start_vsnit,st_start_spatial_rms_vsnit,st_end_vsnit,\
     st_end_spatial_rms_vsnit,st_proj_vsnit,st_proj_spatial_rms_vsnit];
 }
 
 func do_stats_vs_nit(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed,disp=)
 {
+  error,"needs fixing";
   allststart = allstend = allstproj = array(_(0.,nitv*0.),nsamp);
   random_seed,rseed;
   for (k=1;k<=nsamp;k++) {
@@ -514,7 +553,6 @@ func do_stats_vs_nit(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed,disp=)
   write,format="Kept %d out of %d samples\n",nof(w),nsamp;
   ststartavg = allststart(,w)(,avg); stendavg = allstend(,w)(,avg); stprojavg = allstproj(,w)(,avg);
   ststartrms = allststart(,w)(,rms); stendrms = allstend(,w)(,rms); stprojrms = allstproj(,w)(,rms);
-  // write,format="Final Strehl [nm] = %.2fnm +/- %.2f\n",erravg(0),errrms(0);
   fma;
 
   plg,ststartavg,nitv2;
@@ -532,9 +570,8 @@ func do_stats_vs_nit(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed,disp=)
   plmargin; range,0,1;
   xytitles,"Number of iterations",swrite(format="Strehl @ %.0fnm",float(lambda)),[-0.015,0.];
   pltitle,"End Strehl (all optics: red, DMs: green) vs # of iterations";
-  // pltitle,swrite(format="Pray: %dx%d grid, efd=%s, flux=%.0f, RON=%g",\
-  //   ngrid,ngrid,print(deltafoc)(1),flux*1.,ron*1.);
 }
+*/
 
 /*
 func projection_only(pd,cond,silent=)

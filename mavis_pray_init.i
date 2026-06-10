@@ -75,6 +75,7 @@ func init_target_positions(geometry,diam,ngrid,gridpad,&xpos,&ypos)
 
 func init_image_centring(&pd)
 {
+  // write,"Image centring generally leads to worse results. Unadvised, going ahead anyway";
   pd.xy4centring = &(indices(pd.size)-pd.size/2-0.5);
 }
 
@@ -287,7 +288,7 @@ func init_perturbation(&pd,&coeff,&cmin,&cmax)
   return 0;
 }
 
-func init_images(&pd,config,&object,&start_strehl)
+func init_images(&pd,config,&object,&start_strehl,label=)
 {
   res = [];
   if (debug) write,format="%s\n","Computing initial images";
@@ -304,6 +305,7 @@ func init_images(&pd,config,&object,&start_strehl)
   // creating images
   images = array(float,[4,size,size,ntarget,nfoc]);
   strehlv = array(0.,ntarget);
+  // strehlv_at_focus = [];
   allstv = [];
   for (n=1;n<=nfoc;n++) {
     for (i=1;i<=ntarget;i++) {
@@ -313,13 +315,13 @@ func init_images(&pd,config,&object,&start_strehl)
       if (centre_init_images) images(,,i,n) = centre_image(images(,,i,n),pray_data);
       if (deltafoc(n)==0) {
         strehlv(i) = max(images(,,i,n)/sum(images(,,i,n)))/pd.peak_airy;
-        strehlv_at_focus = strehlv; //FIXME overall focus=0 not insured
+        // grow,strehlv_at_focus,strehlv;
       }
     }
     if (deltafoc(n)==0) {
       rotvstr = strjoin(swrite(format="%.0f",rotv(,config(n).roti)),",");
-      write,format="Strehl over FoV (rot=[%s]): avg=%.1f%% rms=%.1f%%\n", \
-        rotvstr,100*avg(strehlv),100*strehlv(rms);
+      write,format="%sStrehl over FoV (rot=[%s]): avg=%.1f%% rms=%.1f%%\n", \
+        (label?label:""),rotvstr,100*avg(strehlv),100*strehlv(rms);
       grow,allstv,strehlv;
     }
   }
@@ -337,12 +339,12 @@ func init_images(&pd,config,&object,&start_strehl)
   }
 
   start_strehl = [avg(allstv),allstv(rms)]; // for all rotations and deltafoc=0
-  write,format="\033[31mStrehl over FoV (all rotations): avg=%.1f%%\033[0m rms=%.1f%%\n", \
-          100*avg(allstv),100*allstv(rms);
+  write,format="\033[31m%sStrehl over FoV (all rotations): avg=%.1f%%\033[0m rms=%.1f%%\n", \
+          (label?label:""),100*avg(allstv),100*allstv(rms);
 
   images = images + random_normal(dimsof(images))*sqrt(variance);
 
   pd.images = &images;
 
-  return strehlv_at_focus;
+  return allstv;
 }
