@@ -1,6 +1,10 @@
+/* mavis_pray_init.i
+ * A collection of init functions
+ */
+
 func init_windows(void)
 /* DOCUMENT
- * init windows
+ * init windows: create and reorganise using niri calls.
  */
 {
   extern init_window_done;
@@ -74,14 +78,19 @@ func init_target_positions(geometry,diam,ngrid,gridpad,&xpos,&ypos)
 }
 
 func init_image_centring(&pd)
+/* DOCUMENT init_image_centring(&pd)
+ * Initialise one array used in image centring. Image centring actually gives
+ * poorer results than a regular non centred process. Not recommended and
+ * generally not used.
+ */
 {
   // write,"Image centring generally leads to worse results. Unadvised, going ahead anyway";
   pd.xy4centring = &(indices(pd.size)-pd.size/2-0.5);
 }
 
 func init_defs(&pd,tiptilt=)
-/* DOCUMENT init_defs
- * initialise defs and other arrays
+/* DOCUMENT init_defs(&pd,tiptilt=)
+ * Initialise defs and other arrays
 */
 {
   require,"projection.i";
@@ -167,7 +176,7 @@ func init_defs(&pd,tiptilt=)
 }
 
 func init_masks(&pd)
-/* DOCUMENT
+/* DOCUMENT init_masks(&pd)
  * Computes the "valid" pixels on all optics (i.e. the pixels in the cubes
  * that are seen by the PSF formation process).
  */
@@ -193,8 +202,8 @@ func init_masks(&pd)
 
 func init_perturbation(&pd,&coeff,&cmin,&cmax)
 /* DOCUMENT
- * Generate coeffs or phase screens and fill pray_data cubes
- * Also sets the cmin and cmax (parameter bounds) for vmlmb
+ * Generate coeffs or phase screens and fill pray_data cubes.
+ * Also sets the cmin and cmax (parameter bounds) for vmlmb.
  */
 {
   nopt = nof(*pd.alt);
@@ -289,6 +298,10 @@ func init_perturbation(&pd,&coeff,&cmin,&cmax)
 }
 
 func init_images(&pd,config,&object,&start_strehl,label=)
+/* DOCUMENT init_images(&pd,config,&object,&start_strehl,label=)
+ * Initialise images based on datacube or coefficients, for all rotation 
+ * and defocal distances.
+ */
 {
   res = [];
   if (debug) write,format="%s\n","Computing initial images";
@@ -298,7 +311,7 @@ func init_images(&pd,config,&object,&start_strehl,label=)
     grow,res,&compute_psfs(pd,deltafoc(i),coeff,amp1,amp2, \
       rotv=rotv(,config.roti(i)),nodisp=1,fromscreens=(initphase=="screens"));
   }
-
+  
   // simple square object ... not used for now, but needed by pray()
   object=array(float,[2,size,size]);
   object(size/2+1,size/2+1) = flux;

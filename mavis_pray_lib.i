@@ -1,4 +1,10 @@
+/* A collection of functions useful for mavis_pray
+ * 
+ */
 func configuration_printout(void)
+/* DOCUMENT configuration_printout
+ * Prints out the configuration of a mavis_pray run
+ */
 {
   write,format="%s\n","--------------------------------------------------------------------------";
   write,format="%s\n","Pray for MAVIS (mavis_pray and pray) - System Configuration";
@@ -24,6 +30,14 @@ func configuration_printout(void)
 }
 
 func strehl_normalisation(&pd,&coeff,config,rotv)
+/* DOCUMENT strehl_normalisation(&pd,&coeff,config,rotv)
+ * Scales the phases in a phase cube or the coefficients to get an average Strehl
+ * over the FoV equal to strehl_target. This is usually intended as an iterative 
+ * process, in which this function is called iteratively 4-10 times to get the
+ * final Strehl right.
+ * In case of a phase cube, pd.truecube is used, in case of coefficients, coeff is used.
+ * config and rotv are used to compute the strehl at all rotation configurations
+ */
 {
   w0 = where(deltafoc==0);
   if (nof(w0)==0) \
@@ -45,6 +59,11 @@ func strehl_normalisation(&pd,&coeff,config,rotv)
 }
 
 func build_bigim(data_set,xpos,ypos,variance,noeclat=)
+/* DOCUMENT build_bigim(data_set,xpos,ypos,variance,noeclat=)
+ * builds and return a large image that contains all PSFs at the locations
+ * set by pd.xpos and pd.ypos. 
+ * This image is only used for display purposes
+ */
 {
   if (zoomfactor==[]) zoomfactor=3.0;
   if (variance==[]) variance = 0.0;
@@ -78,6 +97,12 @@ func build_bigim(data_set,xpos,ypos,variance,noeclat=)
 }
 
 func mask_images(&pd,imask_radius_scaling)
+/* DOCUMENT mask_images(&pd,imask_radius_scaling)
+ * Masks all individual PSFs using a disk mask like array.
+ * This was an experiment to see if convergence would benefit from masking
+ * out the outer field to effectively filter out phase high spatial frequencies.
+ * Not used in any run recently.
+ */
 {
   if (imask_radius_scaling==[]) return 0;
   // write,format="%s\n","-> Masking images to cut high frequencies";
@@ -91,6 +116,12 @@ func mask_images(&pd,imask_radius_scaling)
 }
 
 func centre_image(image,pd)
+/* DOCUMENT centre_image(image,pd)
+ * Computes the centroid and centre "image" in the array.
+ * This was intended to patch th elack of optimisation of the image
+ * centring (TT) for each image. Turns out this actually leads to worse
+ * results than not centring the image. Not recommended and generally not used.
+ */
 {
   // return image;
   cg = (image*(*pd.xy4centring))(sum,sum,)/sum(image);
@@ -100,6 +131,11 @@ func centre_image(image,pd)
 }
 
 func get_high_order_residuals(pd,config)
+/* DOCUMENT get_high_order_residuals(pd,config)
+ * Removes all modes defined in defs from the input phase data cube,
+ * leaving only the high order residuals. After low order modes (defs) are
+ * removed, computes the Strehl using init_images().
+ */
 {
   nopt   = nof(*pd.alt);
   nz12   = (*pd.nmod)(cum);
@@ -149,6 +185,11 @@ func get_high_order_residuals(pd,config)
 }
 
 func fix_diskharmonic(&dh)
+/* DOCUMENT fix_diskharmonic(&dh)
+ * Utility routine to apply pupil to a dh datacube. This is sometimes needed
+ * because the make_diskharmonic routine returns non zero phase values for 
+ * modes with an azimuthal value = 0 (focus, spherical etc) outside of the pupil.
+ */
 {
   w = where(dh(1,1,)==0);
   pup = (abs(dh)(,,w)(,,sum)>0);
@@ -195,6 +236,9 @@ func make_phase_screens(pup,lambda,nm_rms,slope,rseed=,remove_tt=,remove_foc=)
 }
 
 func test_make_phase_screens(nm_rms)
+/* DOCUMENT test_make_phase_screens(nm_rms)
+ * Test make_phase_screens()
+ */
 {
 	dim=256; lambda=550.;
 	if (nm_rms==[]) nm_rms=50.;
@@ -211,47 +255,6 @@ func test_make_phase_screens(nm_rms)
 	return phase;
 }
 
-
-func plot1(allres,nitv2,nsamp,ngrid,deltafoc,flux,ron,nsig,col=)
-{
-  erravg = allres(,avg);
-  errrms = allres(,rms);
-  w = where((abs(allres(0,)-median(allres(0,)))<nsig*allres(0,rms)));
-  w2 = where((abs(allres(0,)-median(allres(0,)))>=nsig*allres(0,rms)));
-  write,format="Kept %d out of %d samples, rejected %s\n",nof(w),nsamp,print(w2);
-  allres = allres(,w)
-  erravg = allres(,avg);
-  errrms = allres(,rms);
-  plg,erravg,nitv2,width=3,color=col;
-  plp,erravg,nitv2,symbol="o",size=0.5,width=3,color=col;
-  pleb,erravg,nitv2,dy=errrms,width=3,color=col;
-  plmargin; range,0;
-  xytitles,"Number of iterations","Phase error [nm]",[-0.015,0.];
-  pltitle,swrite(format="Pray: %dx%d grid, PDEFD=%s, flux=%.0f, RON=%g",\
-    ngrid,ngrid,print(deltafoc)(1),flux*1.,ron*1.);
-  return allres;
-}
-
-func plot_failed(file)
-{
-  d = rdcols(file);
-  rmsin = *d(1); rmsout = *d(2);
-  s = sort(rmsin);
-  rmsin = rmsin(s); rmsout = rmsout(s);
-  nsamp = nof(rmsin);
-  step = 10;
-  x = y = [];
-  for (i=long(min(rmsin));i<=long(max(rmsin)+step);i=i+step) {
-    w = where((rmsin>=i)&(rmsin<(i+step)));
-    if (nof(w)==0) continue;
-    grow,x,avg(rmsin(w));
-    grow,y,100.*sum(rmsout(w)>8)/nof(w);
-  }
-  fma; logxy,0,0; limits,square=0; limits;
-  plh,y,x;
-  pltitle,swrite(format="Convergence failure (%d samples)",nsamp);
-  xytitles,"Input phase rms error [nm]","Failure to converge [%]",[-0.015,0];
-}
 
 func get_non_normalised_strehls(nit)
 /* DOCUMENT
@@ -426,4 +429,46 @@ So, that means **the marechal approximation is for a TT removed phase.**
   }
   write,format="Average Strehl=%.1f%%+/-%.1f%% (set rms=%.1fnm, real rms=%.1fnm, expected Strehl=%.1f)\n",
     100*strehlv(avg),100*strehlv(rms),pharms(avg),nmrms,100*expected_strehl;
+}
+
+
+func plot1(allres,nitv2,nsamp,ngrid,deltafoc,flux,ron,nsig,col=)
+{
+  erravg = allres(,avg);
+  errrms = allres(,rms);
+  w = where((abs(allres(0,)-median(allres(0,)))<nsig*allres(0,rms)));
+  w2 = where((abs(allres(0,)-median(allres(0,)))>=nsig*allres(0,rms)));
+  write,format="Kept %d out of %d samples, rejected %s\n",nof(w),nsamp,print(w2);
+  allres = allres(,w)
+  erravg = allres(,avg);
+  errrms = allres(,rms);
+  plg,erravg,nitv2,width=3,color=col;
+  plp,erravg,nitv2,symbol="o",size=0.5,width=3,color=col;
+  pleb,erravg,nitv2,dy=errrms,width=3,color=col;
+  plmargin; range,0;
+  xytitles,"Number of iterations","Phase error [nm]",[-0.015,0.];
+  pltitle,swrite(format="Pray: %dx%d grid, PDEFD=%s, flux=%.0f, RON=%g",\
+    ngrid,ngrid,print(deltafoc)(1),flux*1.,ron*1.);
+  return allres;
+}
+
+func plot_failed(file)
+{
+  d = rdcols(file);
+  rmsin = *d(1); rmsout = *d(2);
+  s = sort(rmsin);
+  rmsin = rmsin(s); rmsout = rmsout(s);
+  nsamp = nof(rmsin);
+  step = 10;
+  x = y = [];
+  for (i=long(min(rmsin));i<=long(max(rmsin)+step);i=i+step) {
+    w = where((rmsin>=i)&(rmsin<(i+step)));
+    if (nof(w)==0) continue;
+    grow,x,avg(rmsin(w));
+    grow,y,100.*sum(rmsout(w)>8)/nof(w);
+  }
+  fma; logxy,0,0; limits,square=0; limits;
+  plh,y,x;
+  pltitle,swrite(format="Convergence failure (%d samples)",nsamp);
+  xytitles,"Input phase rms error [nm]","Failure to converge [%]",[-0.015,0];
 }
