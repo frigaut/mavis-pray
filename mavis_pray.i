@@ -362,9 +362,31 @@ func simple_projection_only(pd)
   write,format="\033[31mStrehl over FoV after DM projection (all rotations): avg=%.1f%%\033[0m rms=%.1f%%\n", \
   100*avg(strehlv),100*strehlv(rms);
   end_strehl = [avg(strehlv),strehlv(rms)];
+
+  window,3; fma;
+  plot_strehl_contours,strehlv(1:ntarget),*pray_data.xpos,*pray_data.ypos,ngrid,label="Final Strehl across FoV";
+  
   return end_strehlv;
 }
 
+func plot_strehl_contours(strehlv,xpos,ypos,ngrid,label=)
+{
+  xpos = reform(xpos,[2,ngrid,ngrid])*1;
+  ypos = reform(ypos,[2,ngrid,ngrid])*1;
+  ireg = int(xpos*0+1);
+  plmesh,ypos,xpos,ireg;
+  val = 100*reform(strehlv,[2,ngrid,ngrid]);
+  levs=min(val)+(max(val)-min(val))*span(0,1,10); 
+  levs=(int(levs*10))/10.;
+  // window,3; fma;
+  plfc,val,levs=levs; 
+  plc,val,marks=0,levs=levs,marker='A'; 
+  xytitles,"Field position [arcsec]","Field position [arcsec]",[-0.0,0.005];
+  if (label!=[]) pltitle,label;
+  color_bar,levs,vert=1,adjust=-0.019,height=10,width=0.012;
+  limits,-15,15,-15,15;
+  palette,"earth.gp";
+}
 
 struct allstrehl_st {
   long nit;
@@ -413,7 +435,7 @@ func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=,batchname=)
   write,format="Rejected runs: %d\n",rejected;
   write,format="Saving data in folder %s/\n",name;
   f = createb(name+"/do_stats.dat");
-  save,f,strehl_start,strehl_corr,strehl_end,lambda,case,ngrid,deltafoc,flux,ron,rejected;
+  save,f,strehl_start,strehl_corr,strehl_end,lambda,case,xpos,ypos,ngrid,deltafoc,flux,ron,rejected;
   close,f;
 }
 
@@ -422,7 +444,7 @@ func plot_do_stats(strehl_start,strehl_corr,strehl_end,rejected,binsize=,name=,d
   if (binsize==[]) binsize=2.5;
   if (name) {
     f = openb(name+"/do_stats.dat");
-    restore,f,strehl_start,strehl_corr,strehl_end,lambda,case,ngrid,deltafoc,flux,ron,rejected;
+    restore,f,strehl_start,strehl_corr,strehl_end,lambda,case,xpos,ypos,ngrid,deltafoc,flux,ron,rejected;
     close,f;
   }
 
@@ -431,17 +453,20 @@ func plot_do_stats(strehl_start,strehl_corr,strehl_end,rejected,binsize=,name=,d
   w = wheremax(strehl_start.nit);
   nvalid = sum(strehl_start.nit!=0);
   nit = max(strehl_start.nit);
-  ss = sc = se = [];
+  ss = sc = se = se4plc = [];
   for (i=1;i<=nof(w);i++) {
     grow,ss,*(strehl_start(w(i)).strehls)*100;
     grow,sc,*(strehl_corr(w(i)).strehls)*100;
     grow,se,*(strehl_end(w(i)).strehls)*100;
+    grow,se4plc,(*(strehl_end(w(i)).strehls))(1:ngrid*ngrid)(,-);
   }
   if (disp) {
     cw = current_window();
-    if (cw!=10) window,10,wait=1,style="clean.gs";
+    if (window_exists(10)==0) window,10,wait=1,style="clean.gs";
+    else window,10;
     fma; limits,square=0; limits;
     hy = histo2(ss,hx,binsize=binsize);
+    if (colors==[]) colors = tokyonight;
     plh,hy,hx,color=torgb(colors(3)),width=3;
     hy = histo2(sc,hx,binsize=binsize);
     plh,hy,hx,color=torgb(colors(2)),width=3;
@@ -457,14 +482,33 @@ func plot_do_stats(strehl_start,strehl_corr,strehl_end,rejected,binsize=,name=,d
     plt,swrite(format="Strehl fitted median = %.1f%%",median(sc)),6,y0,tosys=1,height=12,color=torgb(colors(2)),justify="LA"; y0-=dy;
     plt,swrite(format="Strehl projected median = %.1f%%",median(se)),6,y0,tosys=1,height=12,color=torgb(colors(1)),justify="LA"; y0-=dy;
     plmargin; range,0;
+
+    if (window_exists(11)==0) {
+      window,11,wait=1,style="clean.gs";
+      pause,500;
+      system,"niri msg action focus-window --id $(niri-get-id-from-title.sh 'Yorick 11')";
+      pause,100;
+      system,"niri msg action consume-or-expel-window-right";
+    } else window,11;
+    fma;
+    plot_strehl_contours,se4plc(,avg),xpos,ypos,ngrid,label="Final Strehl across FoV";
+
+    if (name) {
+      window,10;
+      pause,500;
+      pngcrop,name+"/do_stats_hist";
+      write,format="Plot saved in %s/do_stats_hist.png\n",name;
+      window,11;
+      pause,500;
+      pngcrop,name+"/do_stats_cont";
+      write,format="Plot saved in %s/do_stats_cont.png\n",name;
+    }
+
+    if (cw!=-1) window,cw;
   }
 
   write,format="%d rejected runs out of %d for this batch\n",rejected,nvalid;
 
-  if (name) {
-    pngcrop,name+"/do_stats";
-    write,format="Plot saved in %s/do_stats.png\n",name;
-  }
   pause,500;
 
   if (disp&&(cw!=-1)) window,cw;

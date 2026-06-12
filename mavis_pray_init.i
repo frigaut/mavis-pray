@@ -54,7 +54,7 @@ func init_target_positions(geometry,diam,ngrid,gridpad,&xpos,&ypos)
   if (strpart(geometry,1:3)=="squ") {
     tmp = (indices(ngrid)-ngrid/2-1);
     tmp += (odd(ngrid)?0:0.5);
-    tmp *= diam/ngrid;
+    tmp *= diam/(ngrid-1); // changed -1 2026-06-12
     xpos = tmp(,,1)(*);
     ypos = tmp(,,2)(*);
   } else if (strpart(geometry,1:3)=="hex") {
@@ -166,12 +166,19 @@ func init_defs(&pd,tiptilt=)
   pd.dmgsxposcub = &dmgsxposcub;
   pd.dmgsyposcub = &dmgsyposcub;
 
-  szdef = dimsof(def);
-  _def_pup = array(float,[5,szdef(2),szdef(3),szdef(4),ntarget,nrot]);
-  for (n=1;n<=nrot;n++) {
-    for (i=1;i<=ntarget;i++) _def_pup(,,,i,n) = get_def_in_pupil_from_dir(pd,i,rotv=rotv(,n));
+  if (defpupname!=[]) {
+    f = openb(defpupname);
+    restore,f,defpup;
+    close,f;
+    pd._def_pup = &defpup;
+  } else {
+    szdef = dimsof(def);
+    _def_pup = array(float,[5,szdef(2),szdef(3),szdef(4),ntarget,nrot]);
+    for (n=1;n<=nrot;n++) {
+      for (i=1;i<=ntarget;i++) _def_pup(,,,i,n) = get_def_in_pupil_from_dir(pd,i,rotv=rotv(,n));
+    }
+    pd._def_pup = &_def_pup;
   }
-  pd._def_pup = &_def_pup;
   return 0;
 }
 
@@ -282,7 +289,7 @@ func init_perturbation(&pd,&coeff,&cmin,&cmax)
   }
 
   // compute true phase from truecoeffs for display comparison
-  pd.truecube = &array(0.,[3,size,size,nopt]);
+  pd.truecube = &array(float,[3,size,size,nopt]);
   cpt = 0;
   for (no=1;no<=nopt;no++) {
     if (initphase=="screens") {

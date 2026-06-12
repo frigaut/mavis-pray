@@ -177,7 +177,7 @@ func grad_param_psf(grad_psf,&grad_phase,modes_array,mask,ampli_pup,ampli_foc,pu
   size2 = nof(mask);
   size  = sqrt(size2);
 
-  dummy = where(mask != 0.);
+  dummy = where(mask!=0.);
   count = nof(dummy);
 
   //grad_phase = (2./count)*(conj(ampli_pup)*fft(grad_psf*fft(ampli_pup,-1),1)).im;
@@ -187,15 +187,16 @@ func grad_param_psf(grad_psf,&grad_phase,modes_array,mask,ampli_pup,ampli_foc,pu
   // grad_phase is nil outside (1:pupd,1:pupd) so we need to recentre it for the product with the modes
   // note that modes are also nil outside the same area by definition
   grad_phase = roll(grad_phase,[size/2-pupd/2-2,size/2-pupd/2-2]);
+  grad_phase = float(grad_phase);
 
-  gradMode = modes_array(*,)(where(mask),)(+,)*grad_phase(*)(where(mask))(+);
+  grad_mode = modes_array(*,)(where(mask),)(+,)*grad_phase(*)(where(mask))(+);
 
   extern grad_param_time;
   if (grad_param_time==[]) grad_param_time = 0.;
   grad_param_time += tac(5);
 
 
-  return gradMode;
+  return grad_mode;
 }
 
 
