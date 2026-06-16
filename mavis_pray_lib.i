@@ -182,6 +182,7 @@ func get_high_order_residuals(pd,config)
   // write,format="\033[31mStrehl over FoV from high orders (fitting): avg=%.1f%%\033[0m rms=%.1f%%\n", \
   //   100*avg(strehlv),100*strehlv(rms);
   // above: already displayed in init_images()
+  return strehlv;
 }
 
 func fix_diskharmonic(&dh)
@@ -471,4 +472,13 @@ func plot_failed(file)
   plh,y,x;
   pltitle,swrite(format="Convergence failure (%d samples)",nsamp);
   xytitles,"Input phase rms error [nm]","Failure to converge [%]",[-0.015,0];
+}
+
+
+func myhisto2(data,&hx,binsize=)
+{
+  hy = histo2(data,hx,binsize=binsize);
+  hy = _(0.,hy,0.);
+  hx = _(min(hx)-binsize,hx,max(hx)+binsize);
+  return hy;
 }

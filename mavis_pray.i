@@ -248,7 +248,7 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
 
   if (skip_high_order!=1) {
     if (verbose) write,format="T=%.3fs -> \033[32mGetting high order residuals\033[0m\n",tac();
-    status = get_high_order_residuals(pray_data,config);
+    strehlv_ho = get_high_order_residuals(pray_data,config);
   }
 
   if (verbose) write,format="T=%.3fs -> \033[32minitialising %s\033[0m\n",tac(),"images";
@@ -316,7 +316,7 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
     strehlv_end = simple_projection_only(pray_data);
   }
 
-  return [strehlv_init,strehlv_corr,strehlv_end]; // with rms, e.g. [[0.4492,0.0343104],[0.968047,0.0202398]]
+  return [strehlv_init,strehlv_corr,strehlv_end,strehlv_ho];
 }
 // END OF MAVIS_PRAY
 
@@ -364,7 +364,7 @@ func simple_projection_only(pd)
   end_strehl = [avg(strehlv),strehlv(rms)];
 
   window,3; fma;
-  plot_strehl_contours,strehlv(1:ntarget),*pray_data.xpos,*pray_data.ypos,ngrid,label="Final Strehl across FoV";
+  plot_strehl_contours,strehlv(1:ntarget),*pray_data.xpos,*pray_data.ypos,ngrid,label="Final NCPA-compensated Strehl across FoV";
   
   return end_strehlv;
 }
@@ -377,14 +377,17 @@ func plot_strehl_contours(strehlv,xpos,ypos,ngrid,label=)
   plmesh,ypos,xpos,ireg;
   val = 100*reform(strehlv,[2,ngrid,ngrid]);
   levs=min(val)+(max(val)-min(val))*span(0,1,10); 
-  levs=(int(levs*10))/10.;
+  levs=(int(levs*100))/100.;
   // window,3; fma;
   plfc,val,levs=levs; 
   plc,val,marks=0,levs=levs,marker='A'; 
   xytitles,"Field position [arcsec]","Field position [arcsec]",[-0.0,0.005];
   if (label!=[]) pltitle,label;
-  color_bar,levs,vert=1,adjust=-0.019,height=10,width=0.012;
-  limits,-15,15,-15,15;
+  color_bar,levs,vert=1,adjust=-0.019,height=8,width=0.012,labs=1;
+  radius = max(abs(xpos));
+  limits,-radius,radius,-radius,radius;
+  t = span(0.,2*pi,200);
+  plg,radius*sin(t),radius*cos(t),type=2;
   palette,"earth.gp";
 }
 
@@ -405,6 +408,7 @@ func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=,batchname=)
   strehl_start = array(allstrehl_st(),nof(nitv)*nsamp);
   strehl_corr  = array(allstrehl_st(),nof(nitv)*nsamp);
   strehl_end   = array(allstrehl_st(),nof(nitv)*nsamp);
+  strehl_ho    = array(allstrehl_st(),nof(nitv)*nsamp);
   ind = 1;
   rejected = 0;
   for (ns=1;ns<=nsamp;ns++) {
@@ -425,9 +429,12 @@ func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=,batchname=)
       strehl_end(ind).nit = nitv(nn);
       strehl_end(ind).nsamp = ns;
       strehl_end(ind).strehls = &strehls(,3);
+      strehl_ho(ind).nit = nitv(nn);
+      strehl_ho(ind).nsamp = ns;
+      strehl_ho(ind).strehls = &strehls(,4);
       ind = ind+1;
     }
-    plot_do_stats,strehl_start,strehl_corr,strehl_end,rejected,disp=disp;
+    plot_do_stats,strehl_start,strehl_corr,strehl_end,strehl_ho,rejected,disp=disp;
   }
   strehl_start = strehl_start(1:ind-1);
   strehl_corr  = strehl_corr(1:ind-1);
@@ -435,16 +442,16 @@ func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=,batchname=)
   write,format="Rejected runs: %d\n",rejected;
   write,format="Saving data in folder %s/\n",name;
   f = createb(name+"/do_stats.dat");
-  save,f,strehl_start,strehl_corr,strehl_end,lambda,case,xpos,ypos,ngrid,deltafoc,flux,ron,rejected;
+  save,f,strehl_start,strehl_corr,strehl_end,strehl_ho,lambda,case,xpos,ypos,ngrid,deltafoc,flux,ron,rejected;
   close,f;
 }
 
-func plot_do_stats(strehl_start,strehl_corr,strehl_end,rejected,binsize=,name=,disp=)
+func plot_do_stats(strehl_start,strehl_corr,strehl_end,strehl_ho,rejected,binsize=,name=,disp=)
 {
-  if (binsize==[]) binsize=2.5;
+  if (binsize==[]) binsize=1.0;
   if (name) {
     f = openb(name+"/do_stats.dat");
-    restore,f,strehl_start,strehl_corr,strehl_end,lambda,case,xpos,ypos,ngrid,deltafoc,flux,ron,rejected;
+    restore,f,strehl_start,strehl_corr,strehl_end,strehl_ho,lambda,case,xpos,ypos,ngrid,deltafoc,flux,ron,rejected;
     close,f;
   }
 
@@ -453,34 +460,68 @@ func plot_do_stats(strehl_start,strehl_corr,strehl_end,rejected,binsize=,name=,d
   w = wheremax(strehl_start.nit);
   nvalid = sum(strehl_start.nit!=0);
   nit = max(strehl_start.nit);
-  ss = sc = se = se4plc = [];
+  ss = sc = se = sho = se4plc = [];
+  ssin = scin = sein = shoin = []; // strehl inner FoV (30" diameter)
+
+  // find points that are inside 30" diameter FoV:
+  tmp = abs(xpos,ypos)<=1.03*max(abs(xpos));
+  // above: 1.03 arbitrary, but otherwise for even ngrid, no edge point is included at all.
+  // and replicate as we have accumulated strehl vector over different rotations:
+  nrot = nof(*(strehl_start(1).strehls))/nof(tmp);
+  in = [];
+  for (i=1;i<=nrot;i++) grow,in,tmp;
+  win = where(in);
+  
   for (i=1;i<=nof(w);i++) {
     grow,ss,*(strehl_start(w(i)).strehls)*100;
     grow,sc,*(strehl_corr(w(i)).strehls)*100;
     grow,se,*(strehl_end(w(i)).strehls)*100;
+    grow,sho,*(strehl_ho(w(i)).strehls)*100;
     grow,se4plc,(*(strehl_end(w(i)).strehls))(1:ngrid*ngrid)(,-);
+    grow,ssin,(*(strehl_start(w(i)).strehls))(win)*100;
+    grow,scin,(*(strehl_corr(w(i)).strehls))(win)*100;
+    grow,sein,(*(strehl_end(w(i)).strehls))(win)*100;
+    grow,shoin,(*(strehl_ho(w(i)).strehls))(win)*100;
   }
+  info,sc,scin;
   if (disp) {
     cw = current_window();
     if (window_exists(10)==0) window,10,wait=1,style="clean.gs";
     else window,10;
     fma; limits,square=0; limits;
-    hy = histo2(ss,hx,binsize=binsize);
     if (colors==[]) colors = tokyonight;
+    // start strehl (whole fov)
+    hy = myhisto2(ss,hx,binsize=binsize);
+    plh,hy,hx,color=torgb(colors(3)),width=2,type=3;
+    // corrected strehl (whole fov)
+    hy = myhisto2(sc,hx,binsize=binsize);
+    plh,hy,hx,color=torgb(colors(2)),width=2,type=3;
+    // end/fitted strehl (whole fov)
+    hy = myhisto2(se,hx,binsize=binsize);
+    plh,hy,hx,color=torgb(colors(1)),width=2,type=3;
+    // high order (disk)
+    hy = myhisto2(shoin,hx,binsize=binsize);
+    plh,hy,hx,color=torgb(colors(5)),width=1;
+    // start strehl (disk)
+    hy = myhisto2(ssin,hx,binsize=binsize);
     plh,hy,hx,color=torgb(colors(3)),width=3;
-    hy = histo2(sc,hx,binsize=binsize);
+    // corrected strehl (disk)
+    hy = myhisto2(scin,hx,binsize=binsize);
     plh,hy,hx,color=torgb(colors(2)),width=3;
-    hy = histo2(se,hx,binsize=binsize);
+    // end/fitted strehl (disk)
+    hy = myhisto2(sein,hx,binsize=binsize);
     plh,hy,hx,color=torgb(colors(1)),width=3;
     pltitle,swrite(format="NCPA performance for %d iterations",nit);
     xytitles,swrite(format="Strehl@%dnm",long(lambda)),"Number in bin",[-0.012,0.008];
     y0 = y1 = limits()(4)*0.97; dy=limits()(4)*0.06; y1+=limits()(4)*0.012;
     plg,[y1,y1],[0.,2],width=20,color=torgb(colors(3)); y1-=dy;
+    plg,[y1,y1],[0.,2],width=20,color=torgb(colors(5)); y1-=dy;
     plg,[y1,y1],[0.,2],width=20,color=torgb(colors(2)); y1-=dy;
     plg,[y1,y1],[0.,2],width=20,color=torgb(colors(1)); y1-=dy;
-    plt,swrite(format="Strehl start median = %.1f%%",median(ss)),6,y0,tosys=1,height=12,color=torgb(colors(3)),justify="LA"; y0-=dy;
-    plt,swrite(format="Strehl fitted median = %.1f%%",median(sc)),6,y0,tosys=1,height=12,color=torgb(colors(2)),justify="LA"; y0-=dy;
-    plt,swrite(format="Strehl projected median = %.1f%%",median(se)),6,y0,tosys=1,height=12,color=torgb(colors(1)),justify="LA"; y0-=dy;
+    plt,swrite(format="Strehl start median = %.1f%% (inner: %.1f%%)",median(ss),median(ssin)),6,y0,tosys=1,height=10,color=torgb(colors(3)),justify="LA"; y0-=dy;
+    plt,swrite(format="Strehl high order median = %.1f%% (inner: %.1f%%)",median(sho),median(shoin)),6,y0,tosys=1,height=10,color=torgb(colors(5)),justify="LA"; y0-=dy;
+    plt,swrite(format="Strehl fitted median = %.1f%% (inner: %.1f%%)",median(sc),median(scin)),6,y0,tosys=1,height=10,color=torgb(colors(2)),justify="LA"; y0-=dy;
+    plt,swrite(format="Strehl projected median = %.1f%% (inner: %.1f%%)",median(se),median(sein)),6,y0,tosys=1,height=10,color=torgb(colors(1)),justify="LA"; y0-=dy;
     plmargin; range,0;
 
     if (window_exists(11)==0) {
@@ -491,7 +532,7 @@ func plot_do_stats(strehl_start,strehl_corr,strehl_end,rejected,binsize=,name=,d
       system,"niri msg action consume-or-expel-window-right";
     } else window,11;
     fma;
-    plot_strehl_contours,se4plc(,avg),xpos,ypos,ngrid,label="Final Strehl across FoV";
+    plot_strehl_contours,se4plc(,avg),xpos,ypos,ngrid,label="Final NCPA-compensated Strehl across FoV";
 
     if (name) {
       window,10;
