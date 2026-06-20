@@ -1,7 +1,7 @@
 usemodes  = "zer";        // "dh" (recommended, works well), "kl" or "zer"
 geometry  = "square";     // "square", "hexagonal" or "mavis"
 // geometry  = "hexagonal";
-// geometry  = "mavis";
+geometry  = "mavis";
 // fovshape  = "round";     // "round" if desired if not will default to square
 fovshape  = "square";     // "round" if desired if not will default to square
 // initphase = "coefs";   // "coefs" or "screens"

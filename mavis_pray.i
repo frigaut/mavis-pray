@@ -49,7 +49,7 @@ Strehl over FoV (rot=[180,180,180,180,180,180,180,90,0,0]): avg=37.5% rms=14.5%
 Strehl over FoV (all rotations): avg=41.0% rms=15.4%
 T=13.999s -> calling pray
 Using coeff = 0 as first guess
-Using the VMLM-B method for minimization.
+Using the VMLMB method for minimization.
  ITER    EVAL     CPU [s]            FUNC             max(|G|)   STEPLEN
 ------  ------  ----------  -----------------------  ---------  ---------
 # Iter.   Time (ms)    Eval. Reject.       Obj. Func.           Grad.       Step
@@ -371,11 +371,19 @@ func simple_projection_only(pd)
 
 func plot_strehl_contours(strehlv,xpos,ypos,ngrid,label=)
 {
-  xpos = reform(xpos,[2,ngrid,ngrid])*1;
-  ypos = reform(ypos,[2,ngrid,ngrid])*1;
-  ireg = int(xpos*0+1);
-  plmesh,ypos,xpos,ireg;
-  val = 100*reform(strehlv,[2,ngrid,ngrid]);
+  local xpos,ypos;
+  require,"scatter2grid.i";
+  if (geometry=="square") {
+    xout = reform(xpos,[2,ngrid,ngrid])*1;
+    yout = reform(ypos,[2,ngrid,ngrid])*1;
+    sv = strehlv;
+  } else {
+    // interpolate irregular xpos and ypos to a cartesian geometry
+    sv = scatter2grid(xpos,ypos,strehlv,ngrid,ngrid,xout,yout); 
+  } 
+  ireg = int(xout*0+1);
+  plmesh,yout,xout,ireg;
+  val = 100*reform(sv,[2,ngrid,ngrid]);
   levs=min(val)+(max(val)-min(val))*span(0,1,10); 
   levs=(int(levs*100))/100.;
   // window,3; fma;
@@ -384,7 +392,7 @@ func plot_strehl_contours(strehlv,xpos,ypos,ngrid,label=)
   xytitles,"Field position [arcsec]","Field position [arcsec]",[-0.0,0.005];
   if (label!=[]) pltitle,label;
   color_bar,levs,vert=1,adjust=-0.019,height=8,width=0.012,labs=1;
-  radius = max(abs(xpos));
+  radius = max(abs(xpos)); // yes, should be xpos, not xout
   limits,-radius,radius,-radius,radius;
   t = span(0.,2*pi,200);
   plg,radius*sin(t),radius*cos(t),type=2;
@@ -477,7 +485,7 @@ func plot_do_stats(strehl_start,strehl_corr,strehl_end,strehl_ho,rejected,binsiz
     grow,sc,*(strehl_corr(w(i)).strehls)*100;
     grow,se,*(strehl_end(w(i)).strehls)*100;
     grow,sho,*(strehl_ho(w(i)).strehls)*100;
-    grow,se4plc,(*(strehl_end(w(i)).strehls))(1:ngrid*ngrid)(,-);
+    grow,se4plc,(*(strehl_end(w(i)).strehls))(1:nof(xpos))(,-);
     grow,ssin,(*(strehl_start(w(i)).strehls))(win)*100;
     grow,scin,(*(strehl_corr(w(i)).strehls))(win)*100;
     grow,sein,(*(strehl_end(w(i)).strehls))(win)*100;

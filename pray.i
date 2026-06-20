@@ -494,7 +494,7 @@ func pray(images,pd,deltafoc,variance,object,disp=,verbose=,threshold=,nbiter=,\
   // cmax *=10;
   // cmin *=10;
 
-  if (verbose) write,format="%s\n","Using the VMLM-B method for minimization.";
+  if (verbose) write,format="%s\n","Using the VMLMB method for minimization.";
 
   pd._ftobject   = &_ftobject;
   pd.variance   = &variance;
