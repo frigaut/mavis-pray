@@ -509,13 +509,13 @@ func pray(images,pd,deltafoc,variance,object,disp=,verbose=,threshold=,nbiter=,\
   cont_flag = 1;
   coeff_arr = array(float,(*pd.nmod)(sum));
 
-  if (verbose) {
-    write, format="%s  %s\n%s  %s\n",
-      " ITER    EVAL     CPU [s]            FUNC             max(|G|)",
-      " STEPLEN",
-      "------  ------  ----------  -----------------------  ---------",
-      "---------";
-  }
+  // if (verbose) {
+  //   write, format="%s  %s\n%s  %s\n",
+  //     " ITER    EVAL     CPU [s]            FUNC             max(|G|)",
+  //     " STEPLEN",
+  //     "------  ------  ----------  -----------------------  ---------",
+  //     "---------";
+  // }
 
   // tic;
 

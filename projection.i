@@ -374,12 +374,16 @@ func zero_coeff(pd,noptic)
 
 func project(pd,indfrom,indto)
 {
+  if (debug>50) write,format="project from %d to %d\n",indfrom,indto;
   dim = pd.size;
   xy = indices(dim); //-dim/2.-0.5; // centred
   xylin = indgen(dim);
   // get the pupils
-  pupfrom = (*pd.pupil)(,,indfrom);
-  pupto = (*pd.pupil)(,,indto);
+  // pupfrom = (*pd.pupil)(,,indfrom);
+  // pupto = (*pd.pupil)(,,indto);
+  // the "pupil" are not necessarily circular but defined by the source geometry:
+  pupfrom = (*pd.maskcube)(,,indfrom);
+  pupto = (*pd.maskcube)(,,indto);
   // points inside the pupils
   wfrom = where(pupfrom);
   wto = where(pupto);
@@ -389,7 +393,7 @@ func project(pd,indfrom,indto)
   // phases
   phafrom = (*pd.mircube)(,,indfrom);
   phato = (*pd.mircube)(,,indto);
-  phaproj = array(0.,[2,dim,dim]);
+  phaproj = pupnproj = array(0.,[2,dim,dim]);
   if (debug>50) {
     window,1; fma;
     plsys,3; pli,phafrom*pupfrom;
@@ -400,16 +404,23 @@ func project(pd,indfrom,indto)
   theta = 2.*max(abs(*pd.xpos,*pd.ypos))*4.848e-6;
   psize = pd.teldiam/pd.pupd;
   patches_diam = pd.pupd+theta*abs(*pd.alt)/psize;
-  ratio = patches_diam(indfrom)/patches_diam(indto);
+  ratio = (patches_diam(indto)-pd.pupd)/(patches_diam(indfrom)-pd.pupd);
   dmax = floor((dim-pd.pupd)/2.);
   pup = *pd.ipupil;
   npup = sum(pup);
   // window,3; tv,phafrom; window,1;
   npt = 0;
+  // dmax = 0.5;
   for (i=-dmax;i<=dmax;i++) {
     for (j=-dmax;j<=dmax;j++) {
+      // if (i>(-dmax+5)) continue;
+      // if (abs(j)>2) continue;
       shiftpup = roll(pup,[i,j]);
-      if (sum(shiftpup*pupfrom)!=npup) continue;
+      // just to make sure the beam is entirely contained in the "from" optics:
+      if (sum(shiftpup*pupfrom)!=npup) {
+        if (debug>120) write,format="%s","skip ";
+        continue;
+      }
       npt++;
       if (debug>120) { fma; plsys,1; pli,shiftpup; }
       // wfrom2 = where(shiftpup);
@@ -417,17 +428,36 @@ func project(pd,indfrom,indto)
       // yfrom = xy(,,2)(wfrom2);
       // xto = (xfrom-dim/2-0.5)
       // shift phafrom to centre
-      phafrom2 = roll(phafrom,[-i,-j])*pupfrom;
-      if (debug>120) { plsys,2; pli,phafrom2*pupfrom; }
+      // phafrom2 = roll(phafrom,[-i,-j])*pupfrom;
+      phafrom2 = roll(phafrom,[-i,-j]);
+      if (debug>120) { plsys,2; pli,phafrom2+0.05*pup*(max(phafrom2)-min(phafrom2)); }
       // now back to "to", it has to be shifted back by:
       // xylin2 = (xylin-(dim/2+0.5))*ratio+(dim/2+0.5);
-      xs = i*ratio; ys = j*ratio;
-      phaproj += bilinear(phafrom2,-xs+xylin,-ys+xylin,grid=1);
-      if (debug>120) { plsys,3; pli,phaproj; redraw; if (hitReturn()=="q") error; }
+      xs = -i*ratio; ys = -j*ratio;
+      // phaproj += bilinear(phafrom2,-xs+xylin,-ys+xylin,grid=1);
+      phashift = bilinear(phafrom2,xs+xylin,ys+xylin,grid=1,outside=0);
+      puptoproj = bilinear(pup,xs+xylin,ys+xylin,grid=1,outside=0);
+      phaproj += phashift*puptoproj;
+      pupnproj += puptoproj;
+      if (debug>120) {
+        plsys,3;
+        pli,phashift+0.05*(pupto+puptoproj)*(max(phashift)-min(phashift));
+        redraw;
+        if (hitReturn()=="q") error;
+      }
     }
   }
-  phaproj = phaproj/npt;
-  if (debug>50) { window,1; plsys,2; pli,phaproj*pupto; redraw;}
+  // phaproj = phaproj/npt;
+  phaproj = phaproj/clip(pupnproj,1e-6,);
+  if (debug>50) {
+    window,1;
+    plsys,2;
+    pli,phaproj*pupto;
+    plsys,3;
+    pli,phafrom*pupfrom;
+    redraw;
+    if (hitReturn()=="q") error;
+  }
   // add phase to "to" optic:
   (*pd.mircube)(,,indto) += phaproj;
   // zero "from" optic
