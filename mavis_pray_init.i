@@ -45,7 +45,7 @@ func init_config(&config)
   return 0;
 }
 
-func init_target_positions(geometry,diam,ngrid,gridpad,&xpos,&ypos)
+func init_target_positions(geometry,diam,ngrid,gridpad,&xpos,&ypos,rot=)
 /* DOCUMENT
  * computes x and y position of grid points given geometry,
  * number of points in diameter and diameter
@@ -66,6 +66,20 @@ func init_target_positions(geometry,diam,ngrid,gridpad,&xpos,&ypos)
     w = where(abs(tmp(,,1))<(diam/2.)&abs(tmp(,,2))<(diam/2.));
     xpos = tmp(,,1)(w);
     ypos = tmp(,,2)(w);
+  } else if (strpart(geometry,1:3)=="mav") {
+    if (rot==[]) rot=0.;
+    ngrid = 14;
+    tmp = (indices(ngrid+4)-(ngrid+4)/2-1.);
+    tmp(,,1) += 0.5*(indgen(ngrid+4)%2)(-,);
+    tmp(,,1) += (odd(ngrid)?0:0.5);
+    tmp(,,2) *= sin(60*pi/180.);
+    tmp *= 4.33;
+    tmp(,,1) -= 4.33/2;
+    if (rot) tmp = tmp(,,+)*mrot(rot)(+,);
+    w = where(abs(tmp(,,1))<(diam/2.)&abs(tmp(,,2))<(diam/2.));
+    xpos = tmp(,,2)(w);
+    ypos = tmp(,,1)(w);
+    fovshape = "square";
   } else error,"geometry undefined";
 
   if (fovshape=="round") {
@@ -306,7 +320,7 @@ func init_perturbation(&pd,&coeff,&cmin,&cmax)
 
 func init_images(&pd,config,&object,&start_strehl,label=)
 /* DOCUMENT init_images(&pd,config,&object,&start_strehl,label=)
- * Initialise images based on datacube or coefficients, for all rotation 
+ * Initialise images based on datacube or coefficients, for all rotation
  * and defocal distances.
  */
 {
@@ -318,7 +332,7 @@ func init_images(&pd,config,&object,&start_strehl,label=)
     grow,res,&compute_psfs(pd,deltafoc(i),coeff,amp1,amp2, \
       rotv=rotv(,config.roti(i)),nodisp=1,fromscreens=(initphase=="screens"));
   }
-  
+
   // simple square object ... not used for now, but needed by pray()
   object=array(float,[2,size,size]);
   object(size/2+1,size/2+1) = flux;
