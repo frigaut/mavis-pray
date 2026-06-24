@@ -45,7 +45,7 @@ func init_config(&config)
   return 0;
 }
 
-func init_target_positions(geometry,diam,ngrid,gridpad,&xpos,&ypos,rot=)
+func init_target_positions(geometry,diam,ngrid,gridpad,fovshape,&xpos,&ypos,rot=)
 /* DOCUMENT
  * computes x and y position of grid points given geometry,
  * number of points in diameter and diameter
@@ -83,6 +83,7 @@ func init_target_positions(geometry,diam,ngrid,gridpad,&xpos,&ypos,rot=)
   } else error,"geometry undefined";
 
   if (fovshape=="round") {
+    if (debug) write,format="%s\n","Rounding the FoV";
     if (gridpad==[]) gridpad = 0.;
     w = where(abs(xpos,ypos)<=(diam/2.+gridpad));
     xpos = xpos(w);

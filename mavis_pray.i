@@ -73,6 +73,21 @@ Strehl over FoV after DM projection: avg=76.5% rms=12.1%
 > 
 */
 
+/* Project solution onto a different star asterism:
+case=10; random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=120,modes="zer"); 
+coeff_offsets=*pray_data.coeffs; random_seed,0.75; fovshape="round"; geometry="square"; 
+res=mavis_pray(coeff_offsets,16,[0.,-1.5,1.5],100000,1,,disp=1,noinc=1,maxiter=50,modes="zer"); 
+This runs mavis_pray on the mavis geometry (or whatever is define din mavis_pray_conf.i),
+then re-run by modifying the asterism (e.g. square with 16x16 here) and the fovshape.
+Net result shows that perf doesn't have holes between the mavis stars:
+Mavis asterism:
+Strehl over FoV after compensation (all rotations): avg=98.1% rms=0.5%
+Strehl over FoV after DM projection (all rotations): avg=70.9% rms=9.8%
+16x16 square, round fov with same 3DM NCPA offsets:
+Strehl over FoV after compensation (all rotations): avg=96.0% rms=0.5%
+Strehl over FoV after DM projection (all rotations): avg=70.7% rms=8.0%
+ */
+
 require,"mavis_pray.h";
 require,"mavis_pray_init.i";
 require,"mavis_pray_lib.i";
@@ -80,7 +95,7 @@ require,"pray.i";
 
 write,format="\n%s\n%s\n","Try running","case=10; random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"zer\")";
 write,format="or \"%s\"\n","case=10; random_seed,0.75; do_stats,[50],20,8,[0.,-1.5,1.5],1e5,0,disp=1";
-system,"echo 'case=10; random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"dh\")' | wl-copy";
+system,"echo 'case=10; random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"zer\")' | wl-copy";
 
 func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
 rseed=,verbose=,noinc=,modes=,skip_proj=)
@@ -195,7 +210,7 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
 
   // target positions
   if (verbose) write,format="T=%.3fs -> \033[32minitialising %s\033[0m\n",tac(),"target positions";
-  status = init_target_positions(geometry,fullfield,ngrid,gridpad,xpos,ypos);
+  status = init_target_positions(geometry,fullfield,ngrid,gridpad,fovshape,xpos,ypos);
   pray_data.xpos = &xpos; pray_data.ypos = &ypos;
   ntarget = nof(xpos);
 
@@ -263,9 +278,14 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
   // Call pray, which does the minimisation (with calls to vmlmb + pray_error)
   //**************************************************************************
 
-  if (verbose) write,format="T=%.3fs -> \033[32mcalling %s\033[0m\n",tac(),"pray";
-  res = pray(*pray_data.images,pray_data,deltafoc,variance,object,disp=disp,verbose=verbose,\
-    threshold=threshold,nbiter=maxiter);
+  if (coeff_offsets!=[]) {
+    if (verbose) write,format="%s\n","\033[32mcoeff_offsets are set, skipping call to pray()\033[0m";
+    res = coeff_offsets;
+  } else {
+    if (verbose) write,format="T=%.3fs -> \033[32mcalling %s\033[0m\n",tac(),"pray";
+    res = pray(*pray_data.images,pray_data,deltafoc,variance,object,disp=disp,verbose=verbose,\
+      threshold=threshold,nbiter=maxiter);
+  }
   pray_data.coeffs = &res;
 
   //***************************************
@@ -372,6 +392,7 @@ func simple_projection_only(pd)
 func plot_strehl_contours(strehlv,xpos,ypos,ngrid,label=)
 {
   local xpos,ypos;
+  if (fovshape=="round") return;
   require,"scatter2grid.i";
   if (geometry=="square") {
     xout = reform(xpos,[2,ngrid,ngrid])*1;
