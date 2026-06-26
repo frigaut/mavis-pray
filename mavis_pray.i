@@ -392,24 +392,34 @@ func simple_projection_only(pd)
 func plot_strehl_contours(strehlv,xpos,ypos,ngrid,label=)
 {
   local xpos,ypos;
-  if (fovshape=="round") return;
+  // if (fovshape=="round") return;
   require,"scatter2grid.i";
-  if (geometry=="square") {
-    xout = reform(xpos,[2,ngrid,ngrid])*1;
-    yout = reform(ypos,[2,ngrid,ngrid])*1;
-    sv = strehlv;
-  } else {
+  // if (geometry=="square") {
+  //   xout = reform(xpos,[2,ngrid,ngrid])*1;
+  //   yout = reform(ypos,[2,ngrid,ngrid])*1;
+  //   sv = strehlv;
+  // } else {
     // interpolate irregular xpos and ypos to a cartesian geometry
     sv = scatter2grid(xpos,ypos,strehlv,ngrid,ngrid,xout,yout); 
-  } 
+  // } 
+  // if fovshape="round", we don't want to include the corners in the 
+  // contour plot. So let's compute the distance from [xout,yout] to the actual
+  // [xpos,ypos] and only ireg=1 those that are within a certain distance limit
+  // dis = (sqrt((xout(*)-xpos(-,))^2+(yout(*)-ypos(-,))^2))(,min);
   ireg = int(xout*0+1);
+  if (fovshape=="round") {
+    step = xout(2,1)-xout(1,1);
+    ireg = int(abs(xout-step/2.,yout-step/2.)<=(1.05*fullfield/2.));
+  }
+  // if (hitReturn()=="q") error;
+  // ireg = reform(int(dis<2.),dimsof(xout)); // 1 arcsec
   plmesh,yout,xout,ireg;
   val = 100*reform(sv,[2,ngrid,ngrid]);
   levs=min(val)+(max(val)-min(val))*span(0,1,10); 
   levs=(int(levs*100))/100.;
   // window,3; fma;
   plfc,val,levs=levs; 
-  plc,val,marks=0,levs=levs,marker='A'; 
+  plc,val,marks=0,levs=levs,marker='A',region=1; 
   xytitles,"Field position [arcsec]","Field position [arcsec]",[-0.0,0.005];
   if (label!=[]) pltitle,label;
   color_bar,levs,vert=1,adjust=-0.019,height=8,width=0.012,labs=1;

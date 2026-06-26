@@ -19,7 +19,7 @@ func configuration_printout(void)
   if (initphase=="screens") perturb_from += swrite(format=" (slope=%.3f)",ps_slope);
   write,format="Init phase perturbation from \033[31m%s\033[0m\n",perturb_from;
   for (i=1;i<=nrot;i++) { write,format="Optics rotation, config %d: ",i; rotv(,i); }
-  write,format="Number of sources = %d across %.0f\" FoV, %d total, %s geometry\n",ngrid,fullfield,nof(xpos),geometry;
+  write,format="Number of sources = %d across %.0f\" FoV, %d total, %s geometry, %s FoV\n",ngrid,fullfield,nof(xpos),geometry,fovshape;
   write,format="source flux = %.1f, RON= %g\n",flux,ron;
   write,format="Image centring: init:%s  pray:%s\n",(centre_init_images?"ON":"OFF"),(centre_pray_images?"ON":"OFF");
   write,format="Projection to DM(s) conditionning number: %.1f\n",proj_cond;
