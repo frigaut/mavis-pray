@@ -204,6 +204,11 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
   pray_data.alt     = &alt;
   pray_data.active  = &active;
   pray_data.patch_diam = &(alt*0.);
+  pray_data.config    = &config;
+  pray_data.rotv      = &rotv;
+  pray_data.disp      = (disp?1:0);
+  pray_data.fovshape  = fovshape;
+  pray_data.fullfield = fullfield;
 
   if (verbose) write,format="T=%.3fs -> \033[32minitialising %s\033[0m\n",tac(),"image centring";
   status = init_image_centring(pray_data);
@@ -301,9 +306,6 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
   // The PSFs are computed from "truecube" (when fromscreens==1)
   *pray_data.truecube = *pray_data.origcube - *pray_data.mircube;
 
-  // psfs = compute_psfs(pray_data,0,res*0,amp1,amp2,nodisp=1,fromscreens=1);
-  // disp_im = build_bigim(psfs,xpos,ypos,variance*0);
-
   // we compute Strehls for *all* rotation configurations:
   psfs = []; bigim_done = 0;
   for (i=1;i<=nfoc;i++) {
@@ -323,15 +325,12 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
     100*avg(strehlv_corr),100*strehlv_corr(rms);
   end_strehl = [avg(strehlv_corr),strehlv_corr(rms)];
 
-  // compute strehl if all the fit=1 optics were perfectly corrected and the
-  // fit=0 not corrected at all.
-  // tmp = nm_rmsv*(1-fit);
-  // st = exp(-(2*pi/lambda*sqrt(sum(tmp^2.))));
-  // write,format="Strehl due to fit=0 optics only (full original rms): %.1f%%\n",st*100;
-
   if (allof(active)) {
     write,format="%s\n","All optic active flags are set to one, no fitting to do.";
     strehlv_end = strehlv_corr;
+  } else if (skip_proj) {
+    write,format="%s\n","skip_proj is set: run simple_projection_only(pray_data) later to project.";
+    strehlv_end = [];
   } else {
     strehlv_end = simple_projection_only(pray_data);
   }
@@ -342,8 +341,24 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
 
 
 func simple_projection_only(pd)
+/* DOCUMENT simple_projection_only(pd)
+ * Projects the passive (non-fitted) optics shape onto the active DMs and
+ * reports the resulting Strehl. pd must be a pray_struct as produced and
+ * filled by mavis_pray(), e.g. global pray_data. Can be called either from
+ * within mavis_pray() (when skip_proj is not set) or standalone afterwards
+ * (e.g. when mavis_pray() was called with skip_proj=1).
+ */
 {
   require,"projection.i";
+
+  deltafoc = *pd.deltafoc;
+  nfoc     = nof(deltafoc);
+  config   = *pd.config;
+  rotv     = *pd.rotv;
+  ngrid    = pd.ngrid;
+  ntarget  = nof(*pd.xpos);
+  disp     = pd.disp;
+
   write,format="%s\n","\033[32mProjecting passive optics shape onto DMs\033[0m";
   compute_psfs,pd,0,*pd.coeffs,amp1,amp2,nodisp=1,fromscreens=0;
   // now pd.mircube should contains the estimated phase at foc=0.
@@ -352,19 +367,18 @@ func simple_projection_only(pd)
   pd = simple_project(pd);
   *pd.truecube = *pd.origcube - *pd.mircube;
 
-  // psfs = compute_psfs(pd,0,,amp1,amp2,nodisp=1,fromscreens=1);
   // we compute Strehls for *all* rotation configurations:
+  zerocoeffs = (*pd.coeffs)*0;
   psfs = []; bigim_done = 0;
   for (i=1;i<=nfoc;i++) {
     if (deltafoc(i)!=0) continue; // Strehl has meaning only for in-focus images
-    grow,psfs,compute_psfs(pd,deltafoc(i),res*0,amp1,amp2, \
+    grow,psfs,compute_psfs(pd,deltafoc(i),zerocoeffs,amp1,amp2, \
       rotv=rotv(,config.roti(i)),nodisp=1,fromscreens=1);
     // big im display only for first rot config:
     if (bigim_done==0) disp_im = build_bigim(psfs,*pd.xpos,*pd.ypos,0);
     bigim_done = 1;
   }
 
-  // disp_im = build_bigim(psfs,*pd.xpos,*pd.ypos,0);
   if (disp) {
     window, 1;
     plsys, 1;
@@ -372,9 +386,7 @@ func simple_projection_only(pd)
     pltitle_vp, "Final";
     redraw;
   }
-//   ntarget = nof(*pd.xpos);
   strehlv = array(0.,dimsof(psfs)(0));
-//   airy = roll(abs(fft(*pd.ipupil,1))^2);
   for (i=1;i<=nof(strehlv);i++) {
     strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/pd.peak_airy;
   }
@@ -384,35 +396,31 @@ func simple_projection_only(pd)
   end_strehl = [avg(strehlv),strehlv(rms)];
 
   window,3; fma;
-  plot_strehl_contours,strehlv(1:ntarget),*pray_data.xpos,*pray_data.ypos,ngrid,label="Final NCPA-compensated Strehl across FoV";
-  
+  plot_strehl_contours,strehlv(1:ntarget),*pd.xpos,*pd.ypos,ngrid,\
+    fovshape=pd.fovshape,fullfield=pd.fullfield,label="Final NCPA-compensated Strehl across FoV";
+
   return end_strehlv;
 }
 
-func plot_strehl_contours(strehlv,xpos,ypos,ngrid,label=)
+func plot_strehl_contours(strehlv,xpos,ypos,ngrid,label=,fovshape=,fullfield=)
+/* DOCUMENT plot_strehl_contours(strehlv,xpos,ypos,ngrid,label=,fovshape=,fullfield=)
+ * fovshape= and fullfield= default to the values stored in the global
+ * pray_data (as set by the last mavis_pray() call) when not given explicitly.
+ */
 {
   local xpos,ypos;
-  // if (fovshape=="round") return;
+  if (fovshape==[])  fovshape  = pray_data.fovshape;
+  if (fullfield==[]) fullfield = pray_data.fullfield;
   require,"scatter2grid.i";
-  // if (geometry=="square") {
-  //   xout = reform(xpos,[2,ngrid,ngrid])*1;
-  //   yout = reform(ypos,[2,ngrid,ngrid])*1;
-  //   sv = strehlv;
-  // } else {
-    // interpolate irregular xpos and ypos to a cartesian geometry
-    sv = scatter2grid(xpos,ypos,strehlv,ngrid,ngrid,xout,yout); 
-  // } 
-  // if fovshape="round", we don't want to include the corners in the 
-  // contour plot. So let's compute the distance from [xout,yout] to the actual
-  // [xpos,ypos] and only ireg=1 those that are within a certain distance limit
-  // dis = (sqrt((xout(*)-xpos(-,))^2+(yout(*)-ypos(-,))^2))(,min);
+  // interpolate irregular xpos and ypos to a cartesian geometry
+  sv = scatter2grid(xpos,ypos,strehlv,ngrid,ngrid,xout,yout);
+  // if fovshape="round", we don't want to include the corners in the
+  // contour plot, so exclude grid points beyond the field radius
   ireg = int(xout*0+1);
   if (fovshape=="round") {
     step = xout(2,1)-xout(1,1);
     ireg = int(abs(xout-step/2.,yout-step/2.)<=(1.05*fullfield/2.));
   }
-  // if (hitReturn()=="q") error;
-  // ireg = reform(int(dis<2.),dimsof(xout)); // 1 arcsec
   plmesh,yout,xout,ireg;
   val = 100*reform(sv,[2,ngrid,ngrid]);
   levs=min(val)+(max(val)-min(val))*span(0,1,10); 
@@ -438,7 +446,6 @@ struct allstrehl_st {
 
 func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=,batchname=)
 {
-  // name = "do_stats_"+totxt(long(random()*100000));
   if (batchname==[]) batchname=""; else batchname=batchname+"_";
   d=timestamp(); name = "do_stats_"+batchname+streplace(d,strfind(" ",d,n=10),"-");
   system,"mkdir "+name;
@@ -522,7 +529,6 @@ func plot_do_stats(strehl_start,strehl_corr,strehl_end,strehl_ho,rejected,binsiz
     grow,sein,(*(strehl_end(w(i)).strehls))(win)*100;
     grow,shoin,(*(strehl_ho(w(i)).strehls))(win)*100;
   }
-  info,sc,scin;
   if (disp) {
     cw = current_window();
     if (window_exists(10)==0) window,10,wait=1,style="clean.gs";
@@ -596,29 +602,31 @@ func plot_do_stats(strehl_start,strehl_corr,strehl_end,strehl_ho,rejected,binsiz
 
 func merge_stats(marker)
 {
-  strehl_startv=strehl_corrv=strehl_endv=rejectedv=[];
+  strehl_startv=strehl_corrv=strehl_endv=strehl_hov=rejectedv=[];
   af = findfiles("do_stats_"+marker+"_*");
   for (i=1;i<=nof(af);i++) {
     write,format="Attempting to read %s/do_stats.dat... ",af(i);
     f = openb(af(i)+"/do_stats.dat");
-    restore,f,strehl_start,strehl_corr,strehl_end,lambda,case,ngrid,deltafoc,flux,ron,rejected;
+    restore,f,strehl_start,strehl_corr,strehl_end,strehl_ho,lambda,case,ngrid,deltafoc,flux,ron,rejected;
     close,f;
     write,format="%s\n","done.";
     grow,strehl_startv,strehl_start;
     grow,strehl_corrv,strehl_corr;
     grow,strehl_endv,strehl_end;
+    grow,strehl_hov,strehl_ho;
     grow,rejectedv,rejected;
   }
   strehl_start = strehl_startv;
   strehl_corr = strehl_corrv;
   strehl_end = strehl_endv;
+  strehl_ho = strehl_hov;
   rejected = rejectedv;
   dir  = "do_stats_"+marker;
   name = dir+"/do_stats.dat";
   write,format="Writing merged data to %s\n",name;
   system,"mkdir -p "+dir;
   f = createb(name);
-  save,f,strehl_start,strehl_corr,strehl_end,lambda,case,ngrid,deltafoc,flux,ron,rejected;
+  save,f,strehl_start,strehl_corr,strehl_end,strehl_ho,lambda,case,ngrid,deltafoc,flux,ron,rejected;
   close,f;
 }
 

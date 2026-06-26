@@ -148,37 +148,36 @@ func pray_j_data(&gradient_psf,object=,ft_object=,image=,ft_image=,psf=, \
   return 0.5 * sum((ho_minus_i)^2/variance);
 }
 
-func grad_param_psf(grad_psf,&grad_phase,modes_array,mask,ampli_pup,ampli_foc,pupd)
+func grad_param_psf(grad_psf,&grad_phase,modes_array2d,pupw,ampli_pup,ampli_foc,pupd)
 /* DOCUMENT gradParamPsf
  *
- * grad=gradParamPsf(grad_psf,grad_phase,modes_array,mask,ampli_pup)
+ * grad=gradParamPsf(grad_psf,grad_phase,modes_array2d,pupw,ampli_pup,ampli_foc,pupd)
  *
  * This routine returns the gradient with respect to the mode from the
  * gradient with respect to the PSF
  *
  * KEYWORDS :
- * grad_psf     (input)  : The gradient with respect to the PSF
- * grad_phase   (output) : The gradient with respect to the Phase
- *                         (pupSize x pupSize)
- * mask         (input)  : The pupil
- * modes_array  (input)  : Transformation matrix from the mode coefficients
- *                         space to the phase space (nbModes x pupsize^2)
- * ampli_pup    (input)  : The complex amplitude in the pupil plane
- *                         (pupSize x pupSize)
+ * grad_psf      (input)  : The gradient with respect to the PSF
+ * grad_phase    (output) : The gradient with respect to the Phase
+ *                          (pupSize x pupSize)
+ * pupw          (input)  : Indices of the valid (illuminated) pupil pixels
+ * modes_array2d (input)  : Transformation matrix from the mode coefficients
+ *                          space to the phase space, already restricted to
+ *                          the pupw pixels (nbValidPixels x nbModes)
+ * ampli_pup     (input)  : The complex amplitude in the pupil plane
+ *                          (pupSize x pupSize)
  *
  * SEE ALSO:
  */
 {
-  // modes_array contains the Zi in column ...
+  // modes_array2d contains the Zi in column ...
   // in th tomographic case, modes Array contains the modes, as viewed in the pupil for
   // the specific direction ... need to use getModesInPup before
   //pupd2 = pud^2;
   tic,5;
-  size2 = nof(mask);
-  size  = sqrt(size2);
-
-  dummy = where(mask!=0.);
-  count = nof(dummy);
+  size  = dimsof(ampli_pup)(2);
+  size2 = size*size;
+  count = nof(pupw);
 
   //grad_phase = (2./count)*(conj(ampli_pup)*fft(grad_psf*fft(ampli_pup,-1),1)).im;
 
@@ -189,7 +188,7 @@ func grad_param_psf(grad_psf,&grad_phase,modes_array,mask,ampli_pup,ampli_foc,pu
   grad_phase = roll(grad_phase,[size/2-pupd/2-2,size/2-pupd/2-2]);
   grad_phase = float(grad_phase);
 
-  grad_mode = modes_array(*,)(where(mask),)(+,)*grad_phase(*)(where(mask))(+);
+  grad_mode = modes_array2d(+,)*grad_phase(*)(pupw)(+);
 
   extern grad_param_time;
   if (grad_param_time==[]) grad_param_time = 0.;
@@ -385,7 +384,7 @@ func pray_error(coeffs,&gradient,extra=)
         image=ima(,,(n-1)*ntarget+i),ft_psf=ftPsf,variance=*extra.variance);
 
       ri = config(n).roti;
-      tmp = grad_param_psf(gradientPsf,grad_phaseOut,(*extra._def_pup)(,,,i,ri),*extra.ipupil,\
+      tmp = grad_param_psf(gradientPsf,grad_phaseOut,(*extra._def_pup)(,,i,ri),*extra._pupw,\
         (*extra.ampli_pup)(,,i),(*extra.ampli_foc)(,,i),extra.pupd);
 
       gradient_interm(,(n-1)*ntarget+i) =  tmp;

@@ -181,16 +181,28 @@ func init_defs(&pd,tiptilt=)
   pd.dmgsxposcub = &dmgsxposcub;
   pd.dmgsyposcub = &dmgsyposcub;
 
+  // _pupw: indices of the valid (illuminated) pupil pixels. grad_param_psf()
+  // only ever needs _def_pup restricted to these pixels, so we mask and
+  // reshape it once here rather than on every pray_error() evaluation.
+  pupw = where(*pd.ipupil);
+  pd._pupw = &pupw;
+
   if (defpupname!=[]) {
+    // NB: defpupname caches are expected in the masked [npix,ncoeffs,ntarget,nrot]
+    // format below; regenerate any older full-size cache before reusing it.
     f = openb(defpupname);
     restore,f,defpup;
     close,f;
     pd._def_pup = &defpup;
   } else {
     szdef = dimsof(def);
-    _def_pup = array(float,[5,szdef(2),szdef(3),szdef(4),ntarget,nrot]);
+    ncoeffs = szdef(4);
+    _def_pup = array(float,[4,nof(pupw),ncoeffs,ntarget,nrot]);
     for (n=1;n<=nrot;n++) {
-      for (i=1;i<=ntarget;i++) _def_pup(,,,i,n) = get_def_in_pupil_from_dir(pd,i,rotv=rotv(,n));
+      for (i=1;i<=ntarget;i++) {
+        tmp = get_def_in_pupil_from_dir(pd,i,rotv=rotv(,n));
+        _def_pup(,,i,n) = tmp(*,)(pupw,);
+      }
     }
     pd._def_pup = &_def_pup;
   }

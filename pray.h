@@ -31,6 +31,11 @@ struct pray_struct
   pointer ampli_pup;
   pointer ampli_foc;
   pointer xy4centring;
+  pointer config;
+  pointer rotv;
+  string  fovshape;
+  long    disp;
+  float   fullfield;
   float   avg_focus;
   float   shift_foc;
   float   peak_airy;
@@ -45,6 +50,7 @@ struct pray_struct
   long    _n1;
   long    _n2;
   pointer _def_pup;
+  pointer _pupw;
   pointer _ftobject;
 };
 
