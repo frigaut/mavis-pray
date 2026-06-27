@@ -469,47 +469,6 @@ func project_to_dms(pd,&phase_rms_max,method=,cond=,tikhonov=,report=,reset=)
   return end_strehlv;
 }
 
-func plot_strehl_contours(strehlv,xpos,ypos,ngrid,label=,fovshape=,fullfield=)
-/* DOCUMENT plot_strehl_contours(strehlv,xpos,ypos,ngrid,label=,fovshape=,fullfield=)
- * fovshape= and fullfield= default to the values stored in the global
- * pray_data (as set by the last mavis_pray() call) when not given explicitly.
- */
-{
-  local xpos,ypos;
-  if (fovshape==[])  fovshape  = pray_data.fovshape;
-  if (fullfield==[]) fullfield = pray_data.fullfield;
-  require,"scatter2grid.i";
-  // interpolate irregular xpos and ypos to a cartesian geometry
-  sv = scatter2grid(xpos,ypos,strehlv,ngrid,ngrid,xout,yout);
-  // if fovshape="round", we don't want to include the corners in the
-  // contour plot, so exclude grid points beyond the field radius
-  ireg = int(xout*0+1);
-  if (fovshape=="round") {
-    step = xout(2,1)-xout(1,1);
-    ireg = int(abs(xout-step/2.,yout-step/2.)<=(1.05*fullfield/2.));
-  }
-  plmesh,yout,xout,ireg;
-  val = 100*reform(sv,[2,ngrid,ngrid]);
-  levs=min(val)+(max(val)-min(val))*span(0,1,10); 
-  levs=(int(levs*100))/100.;
-  // window,3; fma;
-  plfc,val,levs=levs; 
-  plc,val,marks=0,levs=levs,marker='A',region=1; 
-  xytitles,"Field position [arcsec]","Field position [arcsec]",[-0.0,0.005];
-  if (label!=[]) pltitle,label;
-  color_bar,levs,vert=1,adjust=-0.019,height=8,width=0.012,labs=1;
-  radius = max(abs(xpos)); // yes, should be xpos, not xout
-  limits,-radius,radius,-radius,radius;
-  t = span(0.,2*pi,200);
-  plg,radius*sin(t),radius*cos(t),type=2;
-  palette,"earth.gp";
-}
-
-struct allstrehl_st {
-  long nit;
-  long nsamp;
-  pointer strehls;
-}
 
 func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=,batchname=)
 {
@@ -584,18 +543,60 @@ func plot_do_stats(strehl_start,strehl_corr,strehl_end,strehl_ho,rejected,binsiz
   in = [];
   for (i=1;i<=nrot;i++) grow,in,tmp;
   win = where(in);
-  
+
+  // compute overall metrics ad fill arrays for plots
+  ssavg = ssrms = scavg = scrms = seavg = serms = shoavg = shorms = array(0.,nof(w));
+  ssinavg = ssinrms = scinavg = scinrms = seinavg = seinrms = shoinavg = shoinrms = array(0.,nof(w));
   for (i=1;i<=nof(w);i++) {
     grow,ss,*(strehl_start(w(i)).strehls)*100;
+    grow,sho,*(strehl_ho(w(i)).strehls)*100;
     grow,sc,*(strehl_corr(w(i)).strehls)*100;
     grow,se,*(strehl_end(w(i)).strehls)*100;
-    grow,sho,*(strehl_ho(w(i)).strehls)*100;
     grow,se4plc,(*(strehl_end(w(i)).strehls))(1:nof(xpos))(,-);
     grow,ssin,(*(strehl_start(w(i)).strehls))(win)*100;
+    grow,shoin,(*(strehl_ho(w(i)).strehls))(win)*100;
     grow,scin,(*(strehl_corr(w(i)).strehls))(win)*100;
     grow,sein,(*(strehl_end(w(i)).strehls))(win)*100;
-    grow,shoin,(*(strehl_ho(w(i)).strehls))(win)*100;
+
+    ssavg(i)    = avg(*(strehl_start(w(i)).strehls)*100);
+    shoavg(i)   = avg(*(strehl_ho(w(i)).strehls)*100);
+    scavg(i)    = avg(*(strehl_corr(w(i)).strehls)*100);
+    seavg(i)    = avg(*(strehl_end(w(i)).strehls)*100);
+    ssinavg(i)  = avg((*(strehl_start(w(i)).strehls))(win)*100);
+    shoinavg(i) = avg((*(strehl_ho(w(i)).strehls))(win)*100);
+    scinavg(i)  = avg((*(strehl_corr(w(i)).strehls))(win)*100);
+    seinavg(i)  = avg((*(strehl_end(w(i)).strehls))(win)*100);
+
+    ssrms(i)    = (*(strehl_start(w(i)).strehls)*100)(rms);
+    shorms(i)   = (*(strehl_ho(w(i)).strehls)*100)(rms);
+    scrms(i)    = (*(strehl_corr(w(i)).strehls)*100)(rms);
+    serms(i)    = (*(strehl_end(w(i)).strehls)*100)(rms);
+    ssinrms(i)  = ((*(strehl_start(w(i)).strehls))(win)*100)(rms);
+    shoinrms(i) = ((*(strehl_ho(w(i)).strehls))(win)*100)(rms);
+    scinrms(i)  = ((*(strehl_corr(w(i)).strehls))(win)*100)(rms);
+    seinrms(i)  = ((*(strehl_end(w(i)).strehls))(win)*100)(rms);
   }
+
+  ssavg    = ssavg(avg);    ssrms    = ssrms(avg);
+  shoavg   = shoavg(avg);   shorms   = shorms(avg);
+  scavg    = scavg(avg);    scrms    = scrms(avg);
+  seavg    = seavg(avg);    serms    = serms(avg);
+  ssinavg  = ssinavg(avg);  ssinrms  = ssinrms(avg);
+  shoinavg = shoinavg(avg); shoinrms = shoinrms(avg);
+  scinavg  = scinavg(avg);  scinrms  = scinrms(avg);
+  seinavg  = seinavg(avg);  seinrms  = seinrms(avg);
+  
+  write,format="%s\n","Average spatial Strehl, and average of the spatial RMS:";
+  write,format="Initial    AVG = %.1f%%, AVG spatial RMS = %.1f%%\n",ssavg,ssrms;
+  write,format="High Order AVG = %.1f%%, AVG spatial RMS = %.1f%%\n",shoavg,shorms;
+  write,format="Fitted     AVG = %.1f%%, AVG spatial RMS = %.1f%%\n",scavg,scrms;
+  write,format="Projected  AVG = %.1f%%, AVG spatial RMS = %.1f%%\n",seavg,serms;
+  write,format="%s\n","Same within the circular Fov (MAVIS specs):";
+  write,format="Initial    AVG = %.1f%%, AVG spatial RMS = %.1f%%\n",ssinavg,ssinrms;
+  write,format="High Order AVG = %.1f%%, AVG spatial RMS = %.1f%%\n",shoinavg,shoinrms;
+  write,format="Fitted     AVG = %.1f%%, AVG spatial RMS = %.1f%%\n",scinavg,scinrms;
+  write,format="Projected  AVG = %.1f%%, AVG spatial RMS = %.1f%%\n",seinavg,seinrms;
+
   if (disp) {
     cw = current_window();
     if (window_exists(10)==0) window,10,wait=1,style="clean.gs";

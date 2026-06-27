@@ -62,3 +62,9 @@ struct config_struct {
   float foc;
   long roti;
 }
+
+struct allstrehl_st {
+  long nit;
+  long nsamp;
+  pointer strehls;
+}

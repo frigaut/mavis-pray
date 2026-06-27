@@ -526,3 +526,39 @@ func scan_projection(pd,condv,tikv)
   wm = wheremax(metric);
   write,format="Best combined metric for cond=%.2f, Tikhonov=%.2f\n",acond(*)(wm),atik(*)(wm);
 }
+
+func plot_strehl_contours(strehlv,xpos,ypos,ngrid,label=,fovshape=,fullfield=)
+/* DOCUMENT plot_strehl_contours(strehlv,xpos,ypos,ngrid,label=,fovshape=,fullfield=)
+ * fovshape= and fullfield= default to the values stored in the global
+ * pray_data (as set by the last mavis_pray() call) when not given explicitly.
+ */
+{
+  local xpos,ypos;
+  if (fovshape==[])  fovshape  = pray_data.fovshape;
+  if (fullfield==[]) fullfield = pray_data.fullfield;
+  require,"scatter2grid.i";
+  // interpolate irregular xpos and ypos to a cartesian geometry
+  sv = scatter2grid(xpos,ypos,strehlv,ngrid,ngrid,xout,yout);
+  // if fovshape="round", we don't want to include the corners in the
+  // contour plot, so exclude grid points beyond the field radius
+  ireg = int(xout*0+1);
+  if (fovshape=="round") {
+    step = xout(2,1)-xout(1,1);
+    ireg = int(abs(xout-step/2.,yout-step/2.)<=(1.05*fullfield/2.));
+  }
+  plmesh,yout,xout,ireg;
+  val = 100*reform(sv,[2,ngrid,ngrid]);
+  levs=min(val)+(max(val)-min(val))*span(0,1,10); 
+  levs=(int(levs*100))/100.;
+  // window,3; fma;
+  plfc,val,levs=levs; 
+  plc,val,marks=0,levs=levs,marker='A',region=1; 
+  xytitles,"Field position [arcsec]","Field position [arcsec]",[-0.0,0.005];
+  if (label!=[]) pltitle,label;
+  color_bar,levs,vert=1,adjust=-0.019,height=8,width=0.012,labs=1;
+  radius = max(abs(xpos)); // yes, should be xpos, not xout
+  limits,-radius,radius,-radius,radius;
+  t = span(0.,2*pi,200);
+  plg,radius*sin(t),radius*cos(t),type=2;
+  palette,"earth.gp";
+}
