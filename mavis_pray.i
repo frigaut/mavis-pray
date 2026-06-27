@@ -332,7 +332,7 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
     strehlv_end = strehlv_corr;
   } else if (skip_proj) {
     write,format="%s\n","skip_proj is set: run simple_projection_only(pray_data) later to project.";
-    strehlv_end = [];
+    strehlv_end = strehlv_corr*0;
   } else {
     strehlv_end = simple_projection_only(pray_data);
   }
@@ -342,16 +342,54 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
 // END OF MAVIS_PRAY
 
 
-func simple_projection_only(pd)
-/* DOCUMENT simple_projection_only(pd)
+func simple_projection_only(pd,&phase_rms_max,method=,cond=,tikhonov=,report=,reset=)
+/* DOCUMENT simple_projection_only(pd,method=,cond=,tikhonov=,report=,reset=)
  * Projects the passive (non-fitted) optics shape onto the active DMs and
  * reports the resulting Strehl. pd must be a pray_struct as produced and
  * filled by mavis_pray(), e.g. global pray_data. Can be called either from
  * within mavis_pray() (when skip_proj is not set) or standalone afterwards
  * (e.g. when mavis_pray() was called with skip_proj=1).
+ *
+ * method= "optimal" (default): joint multi-DM least-squares modal
+ *   projection across all active optics simultaneously
+ *   (optimal_project_modal()). Generally better FoV-averaged Strehl than
+ *   the alternative below, at the cost of higher stroke demand on
+ *   individual DMs -- see cond=/tikhonov=.
+ *   "simple": each passive optic projects onto its single nearest active
+ *   optic (simple_project(), real-space). Lower stroke demand, lower
+ *   Strehl; kept available for comparison.
+ * cond=, tikhonov= passed through to optimal_project_modal() when
+ *   method="optimal" (ignored otherwise). Default 15 and 1 respectively
+ *   -- a good Strehl-vs-stroke tradeoff found by scanning both for the
+ *   nominal MAVIS configuration; re-tune if nopt/nmod/DM altitudes change
+ *   significantly.
+ * report= if set, print per-active-optic phase RMS/peak on mircube after
+ *   projection (the physical DM stroke demand) -- works for both methods,
+ *   so directly comparable. method="optimal" additionally prints its own
+ *   per-DM modal coefficient RMS/peak from optimal_project_modal().
+ * reset= projection mutates pd.coeffs and/or pd.mircube, so repeated calls
+ *   on the same pd compound rather than compare cleanly. A pristine
+ *   pre-projection snapshot of coeffs/mircube is saved automatically (on
+ *   the global pray_data) the first time this is called for a given run;
+ *   pass reset=1 to restore that snapshot before projecting, so you can
+ *   A/B different method=/cond=/tikhonov= from the same starting point.
+ *   A fresh mavis_pray() call (which rebuilds pray_data from scratch)
+ *   clears the snapshot.
  */
 {
+  extern pray_data;
   require,"projection.i";
+
+  if (method==[]) method = "optimal";
+
+  if (*pray_data._coeffs0==[]) {
+    tmp = (*pd.coeffs)*1;  pray_data._coeffs0  = &tmp;
+    tmp = (*pd.mircube)*1; pray_data._mircube0 = &tmp;
+  }
+  if (reset) {
+    *pd.coeffs  = *pray_data._coeffs0;
+    *pd.mircube = *pray_data._mircube0;
+  }
 
   deltafoc = *pd.deltafoc;
   nfoc     = nof(deltafoc);
@@ -361,13 +399,34 @@ func simple_projection_only(pd)
   ntarget  = nof(*pd.xpos);
   disp     = pd.disp;
 
-  write,format="%s\n","\033[32mProjecting passive optics shape onto DMs\033[0m";
-  compute_psfs,pd,0,*pd.coeffs,amp1,amp2,nodisp=1,fromscreens=0;
-  // now pd.mircube should contains the estimated phase at foc=0.
-  // subtract estimate from original phases.
-  // The PSFs are computed from "truecube" (when fromscreens==1)
-  pd = simple_project(pd);
+  if (method=="optimal") {
+    write,format="%s\n","\033[32mProjecting passive optics shape onto DMs (optimal multi-DM modal fit)\033[0m";
+    pd = optimal_project_modal(pd,cond=cond,tikhonov=tikhonov,report=report);
+    compute_psfs,pd,0,*pd.coeffs,amp1,amp2,nodisp=1,fromscreens=0;
+  } else {
+    write,format="%s\n","\033[32mProjecting passive optics shape onto DMs\033[0m";
+    compute_psfs,pd,0,*pd.coeffs,amp1,amp2,nodisp=1,fromscreens=0;
+    // now pd.mircube should contains the estimated phase at foc=0.
+    // subtract estimate from original phases.
+    // The PSFs are computed from "truecube" (when fromscreens==1)
+    pd = simple_project(pd);
+  }
   *pd.truecube = *pd.origcube - *pd.mircube;
+
+  if (report) {
+    // phase (not coefficient) RMS/peak: comparable across both methods,
+    // and the physically meaningful "DM stroke" quantity in either case.
+    write,format="%s\n","Per-active-optic mircube (phase) RMS/peak after projection:";
+    wact = where(*pd.active);
+    phase_rms_max = array(0.,[2,nof(wact),2]);
+    for (i=1;i<=nof(wact);i++) {
+      no = wact(i);
+      wm = where((*pd.pupil)(,,no));
+      ph = ((*pd.mircube)(,,no))(*)(wm);
+      phase_rms_max(i,) = [ph(rms),max(abs(ph))];
+      write,format="  optic %d: rms=%.4g peak=%.4g\n",no,ph(rms),max(abs(ph));
+    }
+  }
 
   // we compute Strehls for *all* rotation configurations:
   zerocoeffs = (*pd.coeffs)*0;

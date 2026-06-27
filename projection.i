@@ -518,3 +518,115 @@ func simple_project(pd)
 
   return pd;
 }
+
+func optimal_project_modal(pd,cond=,tikhonov=,report=)
+/* DOCUMENT optimal_project_modal(pd,cond=,tikhonov=,report=)
+ * Optimal multi-DM projection of all passive optics' modal coefficients
+ * onto the active (DM) optics, as a joint FoV least-squares fit. Unlike
+ * simple_project(), which sends each passive optic's full aberration to
+ * its single nearest active optic, this distributes the correction across
+ * *all* active optics simultaneously, weighted by how well each one can
+ * reproduce the passive aberration over the actual field of view.
+ *
+ * The fit is exact (no disk-kernel/continuous-FoV approximation): it sums
+ * over the real, discrete set of target directions and rotation configs,
+ * reusing pd._def_pup (already precomputed once in init_defs, and already
+ * restricted to the valid pupil pixels) as the per-direction ray-tracing
+ * operator R_k from modal coefficients (all optics stacked) to pupil-plane
+ * phase.
+ *
+ * Let c_dm and c_opt be the stacked modal coefficients of the active and
+ * passive optics respectively, and Rdm_k / Ropt_k the corresponding column
+ * blocks of R_k for direction/rotation k. The joint least-squares problem
+ *   minimize sum_k || Rdm_k c_dm - Ropt_k c_opt ||^2
+ * gives the normal equations
+ *   G c_dm = M c_opt,  G = sum_k Rdm_k^T Rdm_k,  M = sum_k Rdm_k^T Ropt_k
+ * solved here via regularized SVD (cond= conditioning number cutoff, as
+ * used for compute_dms_projector() historically) plus an optional Tikhonov
+ * term (tikhonov=, in units of the mean diagonal of G) to directly trade
+ * fit quality for DM stroke.
+ *
+ * Updates pd.coeffs: zeroes the passive optics' coefficients and adds the
+ * jointly-optimal contribution to the active (DM) coefficients. Does NOT
+ * update pd.mircube -- call compute_psfs() with fromscreens=0 afterwards
+ * to regenerate it from the updated coefficients.
+ *
+ * cond=     SVD conditioning number cutoff for the joint Gramian (default 15,
+ *           found by scanning the Strehl-vs-stroke tradeoff for the nominal
+ *           MAVIS configuration -- re-tune if nopt/nmod/DM altitudes change)
+ * tikhonov= additional ridge term added to the Gramian before inversion,
+ *           as a fraction of its mean diagonal value (default 1, see cond=)
+ * report=   if set, print per-DM coefficient RMS/peak after projection,
+ *           for comparison against simple_project()
+ *
+ * SEE ALSO: simple_project, compute_dms_projector (historical, disk-kernel
+ * approximation, commented out at the top of this file)
+ */
+{
+  if (cond==[]) cond = 15.;
+  if (tikhonov==[]) tikhonov = 1.;
+
+  active = *pd.active;
+  wdm  = where(active==1);  ndm  = nof(wdm);
+  wopt = where(active==0);  nopt_passive = nof(wopt);
+  if (nopt_passive==0) {
+    write,format="%s\n","No \"passive\" optics, no projection to do.";
+    return pd;
+  }
+  if (ndm==0) {
+    write,format="%s\n","No \"active\" optics, nothing to project on.";
+    return pd;
+  }
+
+  nz12 = (*pd.nmod)(cum); nz1 = (nz12+1)(1:-1); nz2 = nz12(2:);
+
+  dmcols = optcols = [];
+  for (i=1;i<=ndm;i++) grow,dmcols,indgen(nz1(wdm(i)):nz2(wdm(i)));
+  for (i=1;i<=nopt_passive;i++) grow,optcols,indgen(nz1(wopt(i)):nz2(wopt(i)));
+
+  ndmcoef  = nof(dmcols);
+  noptcoef = nof(optcols);
+
+  szdp    = dimsof(*pd._def_pup);
+  ntarget = szdp(4);
+  nrotd   = szdp(5);
+
+  G = array(0.,[2,ndmcoef,ndmcoef]);
+  M = array(0.,[2,ndmcoef,noptcoef]);
+
+  for (n=1;n<=nrotd;n++) {
+    for (i=1;i<=ntarget;i++) {
+      Rdm  = (*pd._def_pup)(,dmcols,i,n);
+      Ropt = (*pd._def_pup)(,optcols,i,n);
+      G += Rdm(+,)*Rdm(+,);
+      M += Rdm(+,)*Ropt(+,);
+    }
+  }
+
+  if (tikhonov) {
+    meandiag = sum(G*unit(ndmcoef))/ndmcoef;
+    G += (tikhonov*meandiag)*unit(ndmcoef);
+  }
+
+  ev = SVdec(G,u,vt);
+  evi = 1./ev;
+  w = where(ev<(max(ev)/cond));
+  if (nof(w)) evi(w) = 0.;
+  Ginv = (transpose(vt)(,+)*(diag(evi))(+,))(,+)*transpose(u)(+,);
+
+  Pjoint = Ginv(,+)*M(+,); // [ndmcoef, noptcoef]
+
+  c_opt = (*pd.coeffs)(optcols);
+  (*pd.coeffs)(dmcols)  += Pjoint(,+)*c_opt(+);
+  (*pd.coeffs)(optcols)  = 0.;
+
+  if (report) {
+    write,format="%s\n","Per-DM coefficient RMS/peak after optimal projection:";
+    for (i=1;i<=ndm;i++) {
+      c = get_coeff(pd,wdm(i));
+      write,format="  optic %d: rms=%.4g peak=%.4g\n",wdm(i),c(rms),max(abs(c));
+    }
+  }
+
+  return pd;
+}

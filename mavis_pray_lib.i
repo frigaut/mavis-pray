@@ -482,3 +482,43 @@ func myhisto2(data,&hx,binsize=)
   hx = _(min(hx)-binsize,hx,max(hx)+binsize);
   return hy;
 }
+
+func scan_projection(pd,condv,tikv)
+{
+  arms = amax = savg = srms = acond = atik = array(0.,[2,nof(condv),nof(tikv)]);
+  // for reference, simple projection to nearest DM:
+  svs = simple_projection_only(pd,prms,report=1);
+  for (i=1;i<=nof(condv);i++) {
+    for (j=1;j<=nof(tikv);j++) {
+      write,format="Projection with conditioning=%.2f, tikhonov=%.2f\n",condv(i),tikv(j);
+      sv = simple_projection_only(pd,prm,method="optimal",cond=condv(i),tikhonov=tikv(j),reset=1,report=1);
+      acond(i,j) = condv(i);
+      atik(i,j) = tikv(j);
+      arms(i,j) = prm(avg,1);
+      amax(i,j) = prm(avg,2);
+      savg(i,j) = sv(avg);
+      srms(i,j) = sv(rms);
+    }    
+  }
+  write,format="%s\n","Phase rms";
+  pm,arms;
+  write,format="Projection to nearest DM: %.2f\n\n",prms(avg,1);
+  write,format="%s\n","Phase max";
+  pm,amax;
+  write,format="Projection to nearest DM: %.2f\n\n",prms(avg,2);
+  write,format="%s\n","Strehl avg";
+  pm,savg;
+  write,format="Projection to nearest DM: %.2f\n\n",svs(avg);
+  write,format="%s\n","Strehl rms";
+  pm,srms;
+  write,format="Projection to nearest DM: %.2f\n\n",svs(rms);
+  // "combined" overall criteria:
+  // strehl_avg^2/strehl_rms/amax;
+  metric     = savg^2 / srms / amax;
+  metric_ref = svs(avg)^2 / svs(rms) / prms(avg,2);
+  write,format="%s\n","Combined metric";
+  pm,metric;
+  write,format="Projection to nearest DM: %.2f\n\n",metric_ref;
+  wm = wheremax(metric);
+  write,format="Best combined metric for cond=%.2f, Tikhonov=%.2f\n",acond(*)(wm),atik(*)(wm);
+}
