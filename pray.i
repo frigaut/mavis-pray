@@ -508,16 +508,6 @@ func pray(images,pd,deltafoc,variance,object,disp=,verbose=,threshold=,nbiter=,\
   cont_flag = 1;
   coeff_arr = array(float,(*pd.nmod)(sum));
 
-  // if (verbose) {
-  //   write, format="%s  %s\n%s  %s\n",
-  //     " ITER    EVAL     CPU [s]            FUNC             max(|G|)",
-  //     " STEPLEN",
-  //     "------  ------  ----------  -----------------------  ---------",
-  //     "---------";
-  // }
-
-  // tic;
-
   minim=optm_vmlmb(pray_error,param,fout,gout, \
                  lower=cmin,upper=cmax,ftol=conv_threshold,  \
                  gtol=conv_threshold,maxiter=nbiter,verb=10,observer=myobserver,extra=pd);
@@ -525,18 +515,7 @@ func pray(images,pd,deltafoc,variance,object,disp=,verbose=,threshold=,nbiter=,\
   param=minim;
   pd.objective_function = fout;
 
-  // tac();
-  // if (verbose) {
-  //   write,format="Value of the criterion after %d iterations :",iter;
-  //   criterion_value =  pray_error(minim,grad_fin);
-  //   write,criterion_value;
-  //   if (verbose>1) {
-  //     write,format="Values of the Mode Coeffs after %d iterations :",iter;
-  //     write,minim;
-  //   }
-  // }
-
-  return minim; //*norm;
+  return minim;
 }
 
 func myobserver(iters,evals,rejects,t,x,f,g,gpnorm,alpha,fg,extra=)

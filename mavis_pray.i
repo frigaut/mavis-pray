@@ -98,9 +98,9 @@ write,format="(copied to cliboard) or\n%s\n","case=10; random_seed,0.75; do_stat
 system,"echo 'case=10; random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"zer\")' | wl-copy";
 
 func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
-rseed=,verbose=,noinc=,modes=,skip_proj=,proj_method=)
+  rseed=,verbose=,noinc=,modes=,skip_proj=,proj_method=,config=)
 /* DOCUMENT func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
-rseed=,verbose=,noinc=,modes=,skip_proj=,proj_method=)
+rseed=,verbose=,noinc=,modes=,skip_proj=,proj_method=,config=)
  * mavis_pray simulates the MAVIS NCPA process. It does:
  * initialisation of the optics surface for all optics
  * computes the images
@@ -133,13 +133,17 @@ rseed=,verbose=,noinc=,modes=,skip_proj=,proj_method=)
  *   currently "simple") when not given here; see project_to_dms() and
  *   optimal_project_modal() for what each method does and for the
  *   dm_proj_cond/dm_proj_tikhonov regularization parameters.
+ * config= config file. Default to mavis_pray_conf.i if not given
 */
 {
   extern pray_data;
   extern last_random_seed; // in case, to be able to repeat this random realisation
+  extern initialisation_timing, minimisation_timing, projection_timing;
 
-  if (!noinc) include,"mavis_pray_conf.i",1;
-
+  config_file = (config?config:"mavis_pray_conf.i");
+  if (!noinc) include,config_file,1;
+  tic,2;
+  
   //****************************************
   // parameters (dynamic) and default values
   //****************************************
@@ -291,6 +295,7 @@ rseed=,verbose=,noinc=,modes=,skip_proj=,proj_method=)
   // Call pray, which does the minimisation (with calls to vmlmb + pray_error)
   //**************************************************************************
 
+  initialisation_timing = tac(2); tic,2;
   if (coeff_offsets!=[]) {
     if (verbose) write,format="%s\n","\033[32mcoeff_offsets are set, skipping call to pray()\033[0m";
     res = coeff_offsets;
@@ -299,6 +304,7 @@ rseed=,verbose=,noinc=,modes=,skip_proj=,proj_method=)
     res = pray(*pray_data.images,pray_data,deltafoc,variance,object,disp=disp,verbose=verbose,\
       threshold=threshold,nbiter=maxiter);
   }
+  minimisation_timing = tac(2); tic,2;
   pray_data.coeffs = &res;
 
   //***************************************
@@ -342,6 +348,14 @@ rseed=,verbose=,noinc=,modes=,skip_proj=,proj_method=)
   } else {
     strehlv_end = project_to_dms(pray_data,method=proj_method);
   }
+  
+  projection_timing = tac(2);
+  write,format="Initialisation took %5.1fs\n",initialisation_timing;
+  if (!currentiter) error,"currentiter not defined or nill";
+  write,format="Minimisation   took %5.1fs (%.0fms/it)\n",minimisation_timing,\
+    minimisation_timing*1000/currentiter;
+  write,format="Projection     took %5.1fs\n",projection_timing;
+
 
   return [strehlv_init,strehlv_corr,strehlv_end,strehlv_ho];
 }
@@ -470,12 +484,13 @@ func project_to_dms(pd,&phase_rms_max,method=,cond=,tikhonov=,report=,reset=)
 }
 
 
-func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=,batchname=)
+func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=,batchname=,config=)
 {
   if (batchname==[]) batchname=""; else batchname=batchname+"_";
   d=timestamp(); name = "do_stats_"+batchname+streplace(d,strfind(" ",d,n=10),"-");
   system,"mkdir "+name;
-  system,"cp -p mavis_pray_conf.i "+name+"/";
+  config_file = (config?config:"mavis_pray_conf.i");
+  system,"cp -p "+config_file+" "+name+"/";
 
   strehl_start = array(allstrehl_st(),nof(nitv)*nsamp);
   strehl_corr  = array(allstrehl_st(),nof(nitv)*nsamp);
@@ -486,7 +501,7 @@ func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=,batchname=)
   for (ns=1;ns<=nsamp;ns++) {
     write,format="\n\033[32mSample %d/%d\033[0m\n\n",ns,nsamp;
     for (nn=1;nn<=nof(nitv);nn++) {
-      strehls = mavis_pray(,ngrid,deltafoc,flux,ron,init_strehlv,disp=disp,maxiter=nitv(nn),rseed=rseed);
+      strehls = mavis_pray(,ngrid,deltafoc,flux,ron,init_strehlv,disp=disp,maxiter=nitv(nn),rseed=rseed,config=config);
       if (strehls(avg,2)<0.3) {
         write,format="%s\n","->>> Rejected run!";
         rejected = rejected+1;
@@ -513,6 +528,7 @@ func do_stats(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed=,disp=,batchname=)
   strehl_end   = strehl_end(1:ind-1);
   write,format="Rejected runs: %d\n",rejected;
   write,format="Saving data in folder %s/\n",name;
+  if (case==[]) case=-1;
   f = createb(name+"/do_stats.dat");
   save,f,strehl_start,strehl_corr,strehl_end,strehl_ho,lambda,case,xpos,ypos,ngrid,deltafoc,flux,ron,rejected;
   close,f;

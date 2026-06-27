@@ -7,7 +7,7 @@ fovshape  = "square";     // "round" if desired if not will default to square
 // initphase = "coefs";   // "coefs" or "screens"
 initphase = "screens";   // "coefs" or "screens"
 
-if (case==[]) error,"you have to set the variable 'case' (see mavis_pray_conf.i)";
+if (case==[]) error,"you have to set the variable 'case' (see config file)";
 
 // parameters defined statically:
 if (case==1) {
@@ -20,9 +20,6 @@ if (case==1) {
 }
 
 if (case==2) {
-  // the blow works well with
-  // random_seed,0.75; res=mavis_pray(,5,[0.,-1.5,1.5,-2.5,2.5],100000,1,,disp=1,maxiter=50,modes="dh")
-  // 99.1% Strehl
   alt     = [0.,4000];
   nmod    = [100,100];
   nm_rmsv = [50,50]; // has to be defined if initphase = "screens"
@@ -122,14 +119,6 @@ if (case==100) { // full full case
 
 }
 
-// just for res=get_non_normalised_strehls()
-// alt       = [45.5,13.6,6   ,1.2 ,0. ,-1.9,-4 ,-12.4,-23.9 ,-29.9]*1000; // altitude of optics, length nopt
-// nm_rmsv   = [10. ,30  ,30  ,30  ,30 ,47  ,9  ,11.0 ,6.9   ,48   ];
-// nmod      = [2   ,2   ,2   ,2   ,2  ,2   ,2  ,2    ,2     ,2    ]; // number of modes per optics
-// fit       = [0   ,1   ,1   ,0   ,1  ,0   ,0  ,0    ,0     ,0    ];
-// rotv      = [[0.  ,0   ,0   ,0   ,0  ,0   ,0  ,0    ,0     ,0    ]];
-// fit       = fit*0+1;
-
 // reading optics specs from optics_data_alt_wfe.i: FULL OPTICS TRAIN
 if (case==0) {
   require,"optics_data_alt_wfe.i";
@@ -148,9 +137,13 @@ if (case==0) {
   active(wdm) = 1;
 }
 
-// w = where(fit==0); if (nof(w)) nmod(w) = 2;
 if (active==[]) active = fit*0+1;
 
+// Scalar parameters
+
+debug              = 0;
+display            = 1;
+zoomfactor         = 3;
 weight             = array(2./sqrt(nof(alt)),nof(nmod)); // mode weights (static aberrations)
 fullfield          = 30.; // full field in arcsec (on the side) - why 40 and not 30?
 teldiam            = 8.0; // telescope diameter
@@ -161,20 +154,17 @@ osampl             = 1;   // oversampling (1 or 2)
 gridpad            = 1.;  // padding in arcsec to validate sources
 ps_slope           = -2.5; // slope of power spectrum for init phase screens
 modes_slope        = -1.5; //-1.5; // weight vs radial order for mode/defs
-zoomfactor         = 3;
-display            = 1;
-// debug              = 1;
 strehl_target      = 0.41;
 strehl_target      = exp(-(2*pi*sqrt(sum(nm_rmsv^2))/lambda)^2);
 strehl_normalise   = 10; // number of iterations for Strehl normalisation (recommended: 2)
 centre_init_images = 0; // centre original images.
 centre_pray_images = 0; // centre modelled images. DOES NOT WORK
-nmoddm = nmod(where(active)(1));
 projection_method  = "simple"; // "simple" or "optimal"
 dm_proj_cond       = 15.0; // conditioning number fo dm projection
 dm_proj_tikhonov   = 1.0; // tikhonov regularisation parameter for dm projection
+nmoddm             = nmod(where(active)(1));
 proj_cond          = sqrt(nmoddm)/8.; // condition number for projection to DMs
-// proj_cond          = 2.0; // condition number for projection to DMs
+
 // Graphics parameters
 dpi_target       = 160; // dpi for the "large" graphic windows
 dpi_target_small = 100; // dpi for the secondary graphic windows
@@ -192,12 +182,3 @@ if (nof(nmod)!=doa) error,"nmod and alt do not have the same dimension";
 if (nof(nm_rmsv)!=doa) error,"nm_rmsv and alt do not have the same dimension";
 if (nof(fit)!=doa) error,"fit and alt do not have the same dimension";
 if (dimsof(rotv)(2)!=doa) error,"rotv dimensions incompatible with alt dimension";
-
-// For optics configuration, WFE and altitude, see optics_data_alt_wfe.i
-
-/* FIXME
- * There is an issue. Choose osmapl=2, and a large altitude, e.g 80000.
- * with [1,30]*1.5 on the [0,87000]. spots have quite a bit of TT decorrelated, which is expected.
- * But now when the thing minimize, the spots are NOT with TT, i.e. they seem on a regular grid.
- * all the while, at the end the spots are perfecly on a grid. What's happening?
- */
