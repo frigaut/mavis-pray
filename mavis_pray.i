@@ -236,7 +236,9 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
   status = init_masks(pray_data);
 
   // Airy pattern for Strehl estimation.
-  airy = roll(abs(fft(*pray_data.ipupil,1))^2);
+  extern workspace;
+  workspace = fft_setup(dimsof(*pray_data.ipupil));
+  airy = roll(abs(fft(*pray_data.ipupil,1,setup=workspace))^2);
   pray_data.peak_airy = max(airy/sum(airy));
   airy = [];
 
