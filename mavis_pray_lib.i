@@ -22,7 +22,11 @@ func configuration_printout(void)
   write,format="Number of sources = %d across %.0f\" FoV, %d total, %s geometry, %s FoV\n",ngrid,fullfield,nof(xpos),geometry,fovshape;
   write,format="source flux = %.1f, RON= %g\n",flux,ron;
   write,format="Image centring: init:%s  pray:%s\n",(centre_init_images?"ON":"OFF"),(centre_pray_images?"ON":"OFF");
-  write,format="Projection to DM(s) conditionning number: %.1f\n",proj_cond;
+  if (proj_method=="simple") {
+    write,format="Projection to DM(s) method: \"%s\"\n",proj_method;    
+  } else {
+    write,format="Projection to DM(s) method: \"%s\", with cond=%.1f and Tikhonov=%.1f\n",proj_method,dm_proj_cond,dm_proj_tikhonov;    
+  }
   if (imask_radius_scaling!=[]) \
     write,format="Image mask radius = %.0f%%\n",imask_radius_scaling*100;
   // write,format="%s\n","Current random seed stored in extern last_random_seed, use as rseed to repeat current";
@@ -487,11 +491,11 @@ func scan_projection(pd,condv,tikv)
 {
   arms = amax = savg = srms = acond = atik = array(0.,[2,nof(condv),nof(tikv)]);
   // for reference, simple projection to nearest DM:
-  svs = simple_projection_only(pd,prms,report=1);
+  svs = project_to_dms(pd,prms,report=1);
   for (i=1;i<=nof(condv);i++) {
     for (j=1;j<=nof(tikv);j++) {
       write,format="Projection with conditioning=%.2f, tikhonov=%.2f\n",condv(i),tikv(j);
-      sv = simple_projection_only(pd,prm,method="optimal",cond=condv(i),tikhonov=tikv(j),reset=1,report=1);
+      sv = project_to_dms(pd,prm,method="optimal",cond=condv(i),tikhonov=tikv(j),reset=1,report=1);
       acond(i,j) = condv(i);
       atik(i,j) = tikv(j);
       arms(i,j) = prm(avg,1);

@@ -94,13 +94,13 @@ require,"mavis_pray_lib.i";
 require,"pray.i";
 
 write,format="\n%s\n%s\n","Try running","case=10; random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"zer\")";
-write,format="or \"%s\"\n","case=10; random_seed,0.75; do_stats,[50],20,8,[0.,-1.5,1.5],1e5,0,disp=1";
+write,format="(copied to cliboard) or\n%s\n","case=10; random_seed,0.75; do_stats,[50],20,8,[0.,-1.5,1.5],1e5,0,disp=1";
 system,"echo 'case=10; random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"zer\")' | wl-copy";
 
 func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
-rseed=,verbose=,noinc=,modes=,skip_proj=)
+rseed=,verbose=,noinc=,modes=,skip_proj=,proj_method=)
 /* DOCUMENT func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
-rseed=,verbose=,noinc=,modes=,skip_proj=)
+rseed=,verbose=,noinc=,modes=,skip_proj=,proj_method=)
  * mavis_pray simulates the MAVIS NCPA process. It does:
  * initialisation of the optics surface for all optics
  * computes the images
@@ -127,7 +127,12 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
  *   call again mavis_pray() after an initial call to change some parameters
  * modes= "zer" of "dh". Note that KL is broken at this time
  * skip_proj= skip the projection step, can be executed later using
- *   simple_projection_only(pray_data)
+ *   project_to_dms(pray_data)
+ * proj_method= "simple" or "optimal", passed to project_to_dms() as
+ *   method=. Defaults to projection_method (set in mavis_pray_conf.i,
+ *   currently "simple") when not given here; see project_to_dms() and
+ *   optimal_project_modal() for what each method does and for the
+ *   dm_proj_cond/dm_proj_tikhonov regularization parameters.
 */
 {
   extern pray_data;
@@ -148,6 +153,7 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
   if (!ngrid)       ngrid = 4;
   if (!osampl)      osampl = 1;
   if (modes!=[])    usemodes = modes;
+  if (proj_method==[]) proj_method = projection_method;
   // if (rseed==[])    rseed = 0.3; else
   last_random_seed = rseed;
   if (fit==[])      fit = array(1,nopt);
@@ -331,10 +337,10 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
     write,format="%s\n","All optic active flags are set to one, no fitting to do.";
     strehlv_end = strehlv_corr;
   } else if (skip_proj) {
-    write,format="%s\n","skip_proj is set: run simple_projection_only(pray_data) later to project.";
+    write,format="%s\n","skip_proj is set: run project_to_dms(pray_data) later to project.";
     strehlv_end = strehlv_corr*0;
   } else {
-    strehlv_end = simple_projection_only(pray_data);
+    strehlv_end = project_to_dms(pray_data,method=proj_method);
   }
 
   return [strehlv_init,strehlv_corr,strehlv_end,strehlv_ho];
@@ -342,27 +348,27 @@ rseed=,verbose=,noinc=,modes=,skip_proj=)
 // END OF MAVIS_PRAY
 
 
-func simple_projection_only(pd,&phase_rms_max,method=,cond=,tikhonov=,report=,reset=)
-/* DOCUMENT simple_projection_only(pd,method=,cond=,tikhonov=,report=,reset=)
+func project_to_dms(pd,&phase_rms_max,method=,cond=,tikhonov=,report=,reset=)
+/* DOCUMENT project_to_dms(pd,method=,cond=,tikhonov=,report=,reset=)
  * Projects the passive (non-fitted) optics shape onto the active DMs and
  * reports the resulting Strehl. pd must be a pray_struct as produced and
  * filled by mavis_pray(), e.g. global pray_data. Can be called either from
  * within mavis_pray() (when skip_proj is not set) or standalone afterwards
  * (e.g. when mavis_pray() was called with skip_proj=1).
  *
- * method= "optimal" (default): joint multi-DM least-squares modal
- *   projection across all active optics simultaneously
- *   (optimal_project_modal()). Generally better FoV-averaged Strehl than
- *   the alternative below, at the cost of higher stroke demand on
- *   individual DMs -- see cond=/tikhonov=.
- *   "simple": each passive optic projects onto its single nearest active
- *   optic (simple_project(), real-space). Lower stroke demand, lower
- *   Strehl; kept available for comparison.
+ * method= "optimal": joint multi-DM least-squares modal projection across
+ *   all active optics simultaneously (optimal_project_modal()). Generally
+ *   better FoV-averaged Strehl than the alternative below, at the cost of
+ *   higher stroke demand on individual DMs -- see cond=/tikhonov=.
+ *   "simple" (default here): each passive optic projects onto its single
+ *   nearest active optic (simple_project(), real-space). Lower stroke
+ *   demand, lower Strehl; kept available for comparison. Note that
+ *   mavis_pray() itself defaults to projection_method from
+ *   mavis_pray_conf.i (currently "simple") rather than this function's own
+ *   default, via its proj_method= keyword.
  * cond=, tikhonov= passed through to optimal_project_modal() when
- *   method="optimal" (ignored otherwise). Default 15 and 1 respectively
- *   -- a good Strehl-vs-stroke tradeoff found by scanning both for the
- *   nominal MAVIS configuration; re-tune if nopt/nmod/DM altitudes change
- *   significantly.
+ *   method="optimal" (ignored otherwise); see optimal_project_modal() for
+ *   their defaults (dm_proj_cond/dm_proj_tikhonov, or 15/1).
  * report= if set, print per-active-optic phase RMS/peak on mircube after
  *   projection (the physical DM stroke demand) -- works for both methods,
  *   so directly comparable. method="optimal" additionally prints its own
@@ -690,123 +696,3 @@ func merge_stats(marker)
   save,f,strehl_start,strehl_corr,strehl_end,strehl_ho,lambda,case,ngrid,deltafoc,flux,ron,rejected;
   close,f;
 }
-
-
-/*
-// The following functions are mavis_pray wrappers to run it repeatedly
-// or versus some changing parameters (number of modes etc)
-func perfvsnit(nitv,ngrid,deltafoc,flux,ron,rseed=,disp=)
-{
-  error,"needs fixing";
-  nitv = _(0,nitv);
-  stvsnit = nitv*0.+1;
-  st_start_vsnit = st_start_spatial_rms_vsnit = nitv*0.+1;
-  st_end_vsnit = st_end_spatial_rms_vsnit = nitv*0.+1;
-  st_proj_vsnit = st_proj_spatial_rms_vsnit = nitv*0.+1;
-  allstrehls = [];
-  for (nn=2;nn<=nof(nitv);nn++) {
-    strehls = mavis_pray(,ngrid,deltafoc,flux,ron,init_strehlv,disp=disp,maxiter=nitv(nn),rseed=rseed);
-    grow,allstrehls,strehls(,,-);
-    st_start_vsnit(nn) = strehls(avg,1);
-    st_start_spatial_rms_vsnit(nn) = strehls(rms,1);
-    st_corr_vsnit(nn) = strehls(avg,2);
-    st_corr_spatial_rms_vsnit(nn) = strehls(rms,2);
-    st_end_vsnit(nn) = strehls(avg,3);
-    st_end_spatial_rms_vsnit(nn) = strehls(rms,3);
-  }
-  // fill in the uncorrected case
-  st_start_vsnit(1) = st_start_vsnit(2);
-  st_start_spatial_rms_vsnit(1) = st_start_spatial_rms_vsnit(2);
-  st_corr_vsnit(1) = st_start_vsnit(2);
-  st_corr_spatial_rms_vsnit(1) = st_start_spatial_rms_vsnit(2);
-  st_end_vsnit(1) = st_start_vsnit(2);
-  st_end_spatial_rms_vsnit(1) = st_start_spatial_rms_vsnit(2);
-
-  return [nitv,st_start_vsnit,st_start_spatial_rms_vsnit,st_end_vsnit,\
-    st_end_spatial_rms_vsnit,st_proj_vsnit,st_proj_spatial_rms_vsnit];
-}
-
-func do_stats_vs_nit(nitv,nsamp,ngrid,deltafoc,flux,ron,rseed,disp=)
-{
-  error,"needs fixing";
-  allststart = allstend = allstproj = array(_(0.,nitv*0.),nsamp);
-  random_seed,rseed;
-  for (k=1;k<=nsamp;k++) {
-    write,format="\n\033[32mdo_stats_vs_nit() iteration: %d/%d\033[0m\n",k,nsamp;
-    res = perfvsnit(nitv,ngrid,deltafoc,flux,ron,rseed=random(),disp=disp);
-    allststart(,k) = res(,2); // start strehls vs nit
-    allstend(,k) = res(,4); // end strehls vs nit
-    allstproj(,k) = res(,6); // end strehls vs nit
-    nitv2 = res(,1); // nit vector, including 0
-  }
-  if (window_exists(3)) window,3;
-  else window,3,wait=1,dpi=long(dpi_target_small);
-  fma;
-  w = where((abs(allstend(0,)-median(allstend(0,)))<3*allstend(0,rms)));
-  write,format="Kept %d out of %d samples\n",nof(w),nsamp;
-  ststartavg = allststart(,w)(,avg); stendavg = allstend(,w)(,avg); stprojavg = allstproj(,w)(,avg);
-  ststartrms = allststart(,w)(,rms); stendrms = allstend(,w)(,rms); stprojrms = allstproj(,w)(,rms);
-  fma;
-
-  plg,ststartavg,nitv2;
-  plp,ststartavg,nitv2,symbol="o",size=0.5;
-  pleb,ststartavg,nitv2,dy=ststartrms;
-
-  plg,stprojavg,nitv2,color=torgb(colors(2));
-  plp,stprojavg,nitv2,symbol="o",size=0.5,color=torgb(colors(2));
-  pleb,stprojavg,nitv2,dy=stprojrms,color=torgb(colors(2));
-
-  plg,stendavg,nitv2,color=torgb(colors(1));
-  plp,stendavg,nitv2,symbol="o",size=0.5,color=torgb(colors(1));
-  pleb,stendavg,nitv2,dy=stendrms,color=torgb(colors(1));
-
-  plmargin; range,0,1;
-  xytitles,"Number of iterations",swrite(format="Strehl @ %.0fnm",float(lambda)),[-0.015,0.];
-  pltitle,"End Strehl (all optics: red, DMs: green) vs # of iterations";
-}
-*/
-
-/*
-func projection_only(pd,cond,silent=)
-{
-  require,"projection.i";
-  if (!silent) write,format="\033[32mProjecting passive optics shape onto DMs\033[0m (cond=%.3f)\n",cond;
-  // this projects and update pd with new coefficients
-  csaved = *pd.coeffs;
-  pd = project_to_dms(pd,cond=cond);
-  // same as above, this fills pd.mircube with phases at foc=0 and rot=0???
-  compute_psfs,pd,0,*pd.coeffs,amp1,amp2,nodisp=1,fromscreens=0;
-  *pd.truecube = *pd.origcube - *pd.mircube;
-  psfs = compute_psfs(pd,0,,amp1,amp2,nodisp=1,fromscreens=1);
-  disp_im = build_bigim(psfs,*pd.xpos,*pd.ypos,0);
-  window,1; plsys,1; pli,disp_im; redraw;
-  *pd.coeffs = csaved;
-  // disp_im = build_bigim(psfs,xpos,ypos,variance*0);
-  ntarget = nof(*pd.xpos);
-  strehlv = array(0.,ntarget);
-  airy = roll(abs(fft(*pd.ipupil,1))^2);
-  for (i=1;i<=ntarget;i++) {
-    strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/pd.peak_airy;
-  }
-  write,format="\033[31mStrehl over FoV after DM projection: avg=%.1f%%\033[0m rms=%.1f%%\n", \
-    100*avg(strehlv),100*strehlv(rms);
-  end_strehl = [avg(strehlv),strehlv(rms)];
-  return end_strehl;
-}
-
-func scan_cond(pd)
-{
-  ac=spanl(0.3,6,10);
-  res=ac*0;
-  for (i=1;i<=nof(ac);i++) {
-    write,format="conditionning number=%.3f -> ",ac(i);
-    res(i)=projection_only(pd,ac(i),silent=(i!=1))(1);
-  }
-  window,4;
-  plot,res,ac;
-  logxy,1,0;
-  wbest = wheremax(res)
-  write,format="Best performance = %.1f%% at conditioning number = %.3f\n",res(wbest)*100,ac(wbest);
-  return ac(wbest);
-}
-*/

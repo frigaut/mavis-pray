@@ -170,6 +170,9 @@ strehl_normalise   = 10; // number of iterations for Strehl normalisation (recom
 centre_init_images = 0; // centre original images.
 centre_pray_images = 0; // centre modelled images. DOES NOT WORK
 nmoddm = nmod(where(active)(1));
+projection_method  = "simple"; // "simple" or "optimal"
+dm_proj_cond       = 15.0; // conditioning number fo dm projection
+dm_proj_tikhonov   = 1.0; // tikhonov regularisation parameter for dm projection
 proj_cond          = sqrt(nmoddm)/8.; // condition number for projection to DMs
 // proj_cond          = 2.0; // condition number for projection to DMs
 // Graphics parameters
