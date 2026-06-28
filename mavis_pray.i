@@ -543,6 +543,9 @@ func plot_do_stats(strehl_start,strehl_corr,strehl_end,strehl_ho,rejected,binsiz
     close,f;
   }
 
+  conf_file = findfiles(name+"/*conf*.i");
+  include,conf_file(1),1; // for fovshape and fullfield.
+
   // Strehl histograms only for nit = max(nitv)
   if (max(strehl_start.nit)==0) return;
   w = wheremax(strehl_start.nit);
@@ -661,7 +664,8 @@ func plot_do_stats(strehl_start,strehl_corr,strehl_end,strehl_ho,rejected,binsiz
       system,"niri msg action consume-or-expel-window-right";
     } else window,11;
     fma;
-    plot_strehl_contours,se4plc(,avg),xpos,ypos,ngrid,label="Final NCPA-compensated Strehl across FoV";
+    plot_strehl_contours,se4plc(,avg),xpos,ypos,ngrid,\
+      label="Final NCPA-compensated Strehl across FoV",fovshape=fovshape,fullfield=fullfield;
 
     if (name) {
       window,10;
