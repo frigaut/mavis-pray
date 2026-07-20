@@ -97,6 +97,8 @@ write,format="\n%s\n%s\n","Try running","case=10; random_seed,0.75; res=mavis_pr
 write,format="(copied to cliboard) or\n%s\n","case=10; random_seed,0.75; do_stats,[50],20,8,[0.,-1.5,1.5],1e5,0,disp=1";
 system,"echo 'case=10; random_seed,0.75; res=mavis_pray(,8,[0.,-1.5,1.5],100000,1,,disp=1,maxiter=50,modes=\"zer\")' | wl-copy";
 
+colors = tokyonight;
+
 func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
   rseed=,verbose=,noinc=,modes=,skip_proj=,proj_method=,config=)
 /* DOCUMENT func mavis_pray(coeff_offsets,ngrid,deltafoc,flux,ron,&strehlv,disp=,maxiter=,\
@@ -289,7 +291,7 @@ rseed=,verbose=,noinc=,modes=,skip_proj=,proj_method=,config=)
   if (debug&&(imask_radius_scaling!=[])) write,format="T=%.3fs -> %s\n",tac(),"Masking images to cut high frequencies";
   status = mask_images(pray_data,imask_radius_scaling);
 
-  if (stop_after_init_images) return strehlv;
+  if (stop_after_init_images) return strehlv_init;
 
   //**************************************************************************
   // Call pray, which does the minimisation (with calls to vmlmb + pray_error)
@@ -335,8 +337,8 @@ rseed=,verbose=,noinc=,modes=,skip_proj=,proj_method=,config=)
   for (i=1;i<=nof(strehlv_corr);i++) {
     strehlv_corr(i) = max(psfs(,,i)/sum(psfs(,,i)))/pray_data.peak_airy;
   }
-  write,format="\033[31mStrehl over FoV after compensation (all rotations): avg=%.1f%%\033[0m rms=%.1f%%\n", \
-    100*avg(strehlv_corr),100*strehlv_corr(rms);
+  write,format="\033[31mStrehl over FoV after compensation (all rotations): avg=%.1f%%\033[0m rms=%.1f%% (WFE=%.1f)\n", \
+    100*avg(strehlv_corr),100*strehlv_corr(rms),s2wfe(avg(strehlv_corr));
   end_strehl = [avg(strehlv_corr),strehlv_corr(rms)];
 
   if (allof(active)) {
@@ -472,8 +474,8 @@ func project_to_dms(pd,&phase_rms_max,method=,cond=,tikhonov=,report=,reset=)
     strehlv(i) = max(psfs(,,i)/sum(psfs(,,i)))/pd.peak_airy;
   }
   end_strehlv = strehlv;
-  write,format="\033[31mStrehl over FoV after DM projection (all rotations): avg=%.1f%%\033[0m rms=%.1f%%\n", \
-  100*avg(strehlv),100*strehlv(rms);
+  write,format="\033[31mStrehl over FoV after DM projection (all rotations): avg=%.1f%%\033[0m rms=%.1f%% (WFE=%.1f)\n", \
+  100*avg(strehlv),100*strehlv(rms),s2wfe(avg(strehlv));
   end_strehl = [avg(strehlv),strehlv(rms)];
 
   window,3; fma;
@@ -541,10 +543,11 @@ func plot_do_stats(strehl_start,strehl_corr,strehl_end,strehl_ho,rejected,binsiz
     f = openb(name+"/do_stats.dat");
     restore,f,strehl_start,strehl_corr,strehl_end,strehl_ho,lambda,case,xpos,ypos,ngrid,deltafoc,flux,ron,rejected;
     close,f;
+    conf_file = findfiles(name+"/*conf*.i");
+    include,conf_file(1),1; // for fovshape and fullfield.
+    // else it's probably called while do_stats running and hence fullfield and fovshape defined.
   }
 
-  conf_file = findfiles(name+"/*conf*.i");
-  include,conf_file(1),1; // for fovshape and fullfield.
 
   // Strehl histograms only for nit = max(nitv)
   if (max(strehl_start.nit)==0) return;

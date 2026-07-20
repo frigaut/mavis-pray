@@ -12,6 +12,8 @@ func configuration_printout(void)
   write,format="%s","Extra focal distances: "; deltafoc_orig;
   write,format="%s","Optics conjug. altitude: "; alt;
   write,format="%s","Optics WFE [nm]: "; nm_rmsv;
+  owfe = sqrt(sum(nm_rmsv^2.));
+  write,format="Overall WFE: %.1fnm, corresponding Maréchal Strehl@550nm: %.1f%%\n",owfe,100*exp(-(2*pi*owfe/550)^2.);
   write,format="Number of modes (\033[31m%s\033[0m) per optics: ",strcase(1,usemodes); nmod;
   write,format="%s","Fit optics?  : "; fit;
   write,format="%s","Active optics: "; active;
@@ -31,6 +33,16 @@ func configuration_printout(void)
     write,format="Image mask radius = %.0f%%\n",imask_radius_scaling*100;
   // write,format="%s\n","Current random seed stored in extern last_random_seed, use as rseed to repeat current";
   write,format="%s\n","--------------------------------------------------------------------------";
+}
+
+func s2wfe(st,lambda=)
+/* DOCUMENT s2wfe(st,lambda=)
+ * returns the WFE at wavelength lambda corresponding to the input Strehl,
+ * following the Maréchal approximation
+ */ 
+{
+  if (lambda==[]) lambda=550.;
+  return lambda/(2*pi)*sqrt(-log(st));
 }
 
 func strehl_normalisation(&pd,&coeff,config,rotv)
@@ -285,14 +297,17 @@ func get_non_normalised_strehls(nit)
   // to init config:
   stop_after_init_images=1;
   skip_high_order=1;
+  skip_defs = 1;
+  disp = 1;
+  case = 12;
   res = mavis_pray(,8,[0,-1.5,1.5],1000,0.,,disp=1,maxiter=50);
   geometry  = "square"; // "square" or "hexagonal"
   fovshape  = "square";     // "round" if desired if not will default to square
-  dmrms = 12.;
-  nm_rmsv   = [10.,dmrms,dmrms,30,dmrms,47,9.05,11.43,6.9,48.25];
+  // dmrms = 12.;
+  // nm_rmsv   = [10.,dmrms,dmrms,30,dmrms,47,9.05,11.43,6.9,48.25];
   nm_rms    = sqrt(sum(nm_rmsv^2));
   expected_strehl = exp(-(2*pi*sqrt(sum(nm_rmsv^2))/lambda)^2);
-  strehl_normalise=0;
+  strehl_normalise = 0;
   // allres = array(0.,[2,2,nit]);
   allstrehl = [];
   for (n=1;n<=nit;n++) {

@@ -187,6 +187,8 @@ func init_defs(&pd,tiptilt=)
   pupw = where(*pd.ipupil);
   pd._pupw = &pupw;
 
+  if (skip_defs) return 0;
+  
   if (defpupname!=[]) {
     // NB: defpupname caches are expected in the masked [npix,ncoeffs,ntarget,nrot]
     // format below; regenerate any older full-size cache before reusing it.
@@ -367,8 +369,8 @@ func init_images(&pd,config,&object,&start_strehl,label=)
     }
     if (deltafoc(n)==0) {
       rotvstr = strjoin(swrite(format="%.0f",rotv(,config(n).roti)),",");
-      write,format="%sStrehl over FoV (rot=[%s]): avg=%.1f%% rms=%.1f%%\n", \
-        (label?label:""),rotvstr,100*avg(strehlv),100*strehlv(rms);
+      write,format="%sStrehl over FoV (rot=[%s]): avg=%.1f%% rms=%.1f%% (WFE=%.1f)\n", \
+        (label?label:""),rotvstr,100*avg(strehlv),100*strehlv(rms),s2wfe(avg(strehlv));
       grow,allstv,strehlv;
     }
   }
@@ -386,8 +388,8 @@ func init_images(&pd,config,&object,&start_strehl,label=)
   }
 
   start_strehl = [avg(allstv),allstv(rms)]; // for all rotations and deltafoc=0
-  write,format="\033[31m%sStrehl over FoV (all rotations): avg=%.1f%%\033[0m rms=%.1f%%\n", \
-          (label?label:""),100*avg(allstv),100*allstv(rms);
+  write,format="\033[31m%sStrehl over FoV (all rotations): avg=%.1f%%\033[0m rms=%.1f%% (WFE=%.1f)\n", \
+          (label?label:""),100*avg(allstv),100*allstv(rms),s2wfe(avg(allstv));
 
   images = images + random_normal(dimsof(images))*sqrt(variance);
 

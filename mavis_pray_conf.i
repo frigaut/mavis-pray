@@ -81,17 +81,34 @@ if (case==9) { // updated collimator 6/4/26
 }
 
 if (case==10) { // updated collimator 6/4/26
-  alt         = [45.5,13.6,6   ,1.2 ,0. ,-1.9,-4 ,-12.4,-23.9,-29.9]*1000; // altitude of optics, length nopt
-  // nm_rmsv     = [10. ,30  ,30  ,10  ,30 ,47  ,9  ,11.0 ,6.9   ,48  ];
-  nm_rmsv     = [10. ,25  ,25  ,10  ,25 ,47  ,9  ,11.0 ,6.9   ,48  ];
-  nm=50; nmod = [nm  , 100 , 100 ,nm  , 100,nm  ,nm ,nm   ,nm    ,nm  ]; // number of modes per optics
-  fit         = [0   ,1   ,1   ,0   ,1  ,0   ,0  ,0    ,0     ,0   ];
-  active      = [0   ,1   ,1   ,0   ,1  ,0   ,0  ,0    ,0     ,0   ];
-  rotv        = [[0. ,0   ,0   ,0   ,0  ,0   ,0  ,0    ,0     ,0   ],
-                [180 ,180 ,180 ,180 ,180,180 ,180,90   ,0     ,0   ]];
-  // rotv        = [[0. ,0   ,0   ,0   ,0  ,0   ,0  ,0    ,0     ,0   ]];
+  // 2026-07-20 updated altitude of field lens and collimator following DGR clack message 5/5/26 - minor
+  // 2026-07-20 updated sci objective to include fold 48 -> 49nm 
+  alt         = [ 48.0, 13.6,  6.0,  1.5,  0.0, -1.9, -4.0,-12.4,-23.9,-29.9]*1000; // altitude of optics, length nopt
+  nm_rmsv     = [  10.,   25,   25,   10,   25,   47,  9.1, 11.4,  6.9, 48.3];
+  nm=50; nmod = [   nm,  100,  100,   nm,  100,   nm,   nm,   nm,   nm,   nm]; // number of modes per optics
+  fit         = [   0n,    1,    1,    0,    1,    0,    0,    0,    0,    0];
+  active      = [   0n,    1,    1,    0,    1,    0,    0,    0,    0,    0];
+  rotv        = [[  0.,    0,    0,    0,    0,    0,    0,    0,    0,    0],
+                [  180,  180,  180,  180,  180,  180,  180,   90,    0,    0]];
   fit       = fit*0+1;
 }
+
+if (case==12) { 
+  // This is 10, without the DSM.
+  // updated collimator 6/4/26
+  // 2026-07-20 updated altitude of field lens and collimator following DGR clack message 5/5/26 - minor
+  // 2026-07-20 updated sci objective to include fold 48 -> 49nm 
+  alt         = [ 48.0, 13.6,  6.0,  1.5, -1.9, -4.0,-12.4,-23.9,-29.9]*1000; // altitude of optics, length nopt
+  nm_rmsv     = [  10.,   15,   15,   10,   47,  9.1, 11.4,  6.9, 48.3];
+  nm=50; nmod = [   nm,  100,  100,   nm,   nm,   nm,   nm,   nm,   nm]; // number of modes per optics
+  fit         = [   0n,    1,    1,    0,    0,    0,    0,    0,    0];
+  active      = [   0n,    1,    1,    0,    0,    0,    0,    0,    0];
+  rotv        = [[  0.,    0,    0,    0,    0,    0,    0,    0,    0],
+                [  180,  180,  180,  180,  180,  180,   90,    0,    0]];
+  fit       = fit*0+1;
+}
+
+
 
 if (case==11) { // updated collimator 6/4/26
   alt         = [15.5,13.6,6   ,1.2 ,0. ,-1.9,-4 ,-6.4,-9.9,-23.9]*1000; // altitude of optics, length nopt
